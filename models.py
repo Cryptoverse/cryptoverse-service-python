@@ -35,34 +35,34 @@ class StarLog(db.Model):
         state
     ):
         if not isinstance(log_header, basestring):
-            throw TypeError("Hash is not string")
+            raise TypeError("Hash is not string")
         if not isinstance(log_header, basestring):
-            throw TypeError("log_header is wrong type")
+            raise TypeError("log_header is wrong type")
         if not isinstance(version, int):
-            throw TypeError("version is not int")
+            raise TypeError("version is not int")
         if not isinstance(log_header, basestring):
-            throw TypeError("log_header is not string")
+            raise TypeError("log_header is not string")
         if not isinstance(version, int):
-            throw TypeError("version is not int")
+            raise TypeError("version is not int")
         if not isinstance(previous_hash, basestring):
-            throw TypeError("previous_hash is not string")
+            raise TypeError("previous_hash is not string")
         if not isinstance(difficulty, int):
-            throw TypeError("difficulty is not int")
+            raise TypeError("difficulty is not int")
         if not isinstance(nonce, int):
-            throw TypeError("nonce is not int")
+            raise TypeError("nonce is not int")
         if not isinstance(time, int):
-            throw TypeError("time is not int")
+            raise TypeError("time is not int")
         if not isinstance(state_hash, basestring):
-            throw TypeError("state_hash is not string")
+            raise TypeError("state_hash is not string")
         if not isinstance(state, basestring):
-            throw TypeError("state is not string")
+            raise TypeError("state is not string")
 
         if not util.verifyFieldIsHash(hash):
-            throw ValueError("hash is not a MD5 Hash")
+            raise ValueError("hash is not a MD5 Hash")
         if not util.verifyFieldIsHash(previous_hash):
-            throw ValueError("previous_hash is not a MD5 Hash")
+            raise ValueError("previous_hash is not a MD5 Hash")
         if not util.verifyFieldIsHash(state_hash):
-            throw ValueError("state_hash is not a MD5 Hash")
+            raise ValueError("state_hash is not a MD5 Hash")
 
         self.hash = hash
         self.log_header = log_header
@@ -94,8 +94,10 @@ class StarLog(db.Model):
         db.session.commit()
 
         jsonData = json.loads(jsonData)
-        if 'jumps' in jsonData:
-            for jump in jumps:
+
+        # This raises a parse error if I leave it uncommented... probably because it's trying to loop through nothing
+        #if 'jumps' in jsonData:
+        #    for jump in jumps:
 
 
         if 'star_systems' in jsonData:
@@ -148,37 +150,37 @@ class Jump(db.Model):
         signature
     ):
         if not isinstance(fleet, basestring):
-            throw TypeError("Fleet is not of type BaseString")
+            raise TypeError("Fleet is not of type BaseString")
         if not isinstance(jump_key, basestring):
-            throw TypeError("jump_key is not of type BaseString")
+            raise TypeError("jump_key is not of type BaseString")
         if not isinstance(origin, [basestring,StarSystem]):
-            throw TypeError("origin is not of type BaseString or StarSystem")
+            raise TypeError("origin is not of type BaseString or StarSystem")
         if not isinstance(destination, [basestring,StarSystem]):
-            throw TypeError("destination is not of type BaseString or StarSystem")
+            raise TypeError("destination is not of type BaseString or StarSystem")
         if not isinstance(count, int):
-            throw TypeError("count is not of type int")
+            raise TypeError("count is not of type int")
         if not isinstance(hash, basestring):
-            throw TypeError("signature is not of type int")
+            raise TypeError("signature is not of type int")
 
         if count < 1:
-            throw ValueError("jumps cannot be fewer than one")
+            raise ValueError("jumps cannot be fewer than one")
 
         if isinstance(origin, basestring):
             if not util.verifyFieldIsHash(origin):
-                throw ValueError("origin (of type basestring) isn't an MD5 hash")
+                raise ValueError("origin (of type basestring) isn't an MD5 hash")
             self.origin = db.session.query(StarLog).filter(Starlog.hash==origin).first()
         else:
             self.origin = origin
 
         if isinstance(destination, basestring):
             if not util.verifyFieldIsHash(destination):
-                throw ValueError("destination (of type basestring) isn't an MD5 hash")
+                raise ValueError("destination (of type basestring) isn't an MD5 hash")
             self.destination = db.session.query(StarLog).filter(Starlog.hash==destination).first()
         else:
             self.destination = destination
 
         if self.destination==self.origin:
-            throw ValueError("Destination and origin cannot be the same")
+            raise ValueError("Destination and origin cannot be the same")
             
         hashed = hashlib.sha256(fleet+jump_key+self.origin+self.destination+str(count))
 
