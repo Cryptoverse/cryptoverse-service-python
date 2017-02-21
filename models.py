@@ -9,7 +9,7 @@ import util
 class StarLog(db.Model):
     __tablename__ = "star_logs"
     extend_existing=True
-    
+
     id = db.Column(db.Integer, primary_key=True)
     hash = db.Column(db.String(64))
     height = db.Column(db.Integer)
@@ -21,24 +21,22 @@ class StarLog(db.Model):
     difficulty = db.Column(db.Integer)
     nonce = db.Column(db.Integer)
     time = db.Column(db.Integer)
-    discovery_hash = db.Column(db.String(64))
+    state_hash = db.Column(db.String(64))
 
     def __repr__(self):
         return '<StarLog %r>' % self.hash
 
     def __init__(
-        id,
+        self,
         hash,
-        height,
-        chain,
-        size,
         log_header,
         version,
         previous_hash,
         difficulty,
         nonce,
         time,
-        discovery_hash
+        state_hash,
+        state
     ):
         if not isinstance(log_header, basestring):
             raise TypeError("Hash is not string")
@@ -70,7 +68,6 @@ class StarLog(db.Model):
         if not util.verifyFieldIsHash(state_hash):
             raise ValueError("state_hash is not a MD5 Hash")
 
-        self.id = id
         self.hash = hash
         self.log_header = log_header
         self.version = version
@@ -81,24 +78,22 @@ class StarLog(db.Model):
         self.state_hash = state_hash
         self.state = state
 
-    def initFromJson(jsonData):
-        obj = json.loads(jsonData)
-        starlog = StarLog(
-            obj['id'],
-            obj['hash'],
-            obj['height'],
-            obj['chain'],
-            obj['size'],
-            obj['log_header'],
-            obj['version'],
-            obj['previous_hash'],
-            obj['difficulty'],
-            obj['nonce'],
-            obj['time'],
-            obj['discovery_hash'])
+    @classmethod
+    def initFromDictionary(cls, dictObj):
+        starlog = cls(
+            dictObj['hash'],
+            dictObj['log_header'],
+            dictObj['version'],
+            dictObj['previous_hash'],
+            dictObj['difficulty'],
+            dictObj['nonce'],
+            dictObj['time'],
+            dictObj['state_hash'],
+            dictObj['state'])
 
         return starlog
 
+    @classmethod
     def addFromJson(jsonData, parseJumpData=True, parseStarSystemData=True):
         sl = initFromJson(jsonData)
         db.session.add(sl)

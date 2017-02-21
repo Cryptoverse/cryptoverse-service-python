@@ -1,7 +1,7 @@
 from __future__ import print_function
 from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
-import sys
+import sys, traceback
 import os
 import cryptography
 import hashlib
@@ -21,6 +21,11 @@ def routeStarLogs():
 		print(models.StarLog.query.all(), file=sys.stderr)
 		return "ok"
 	elif request.method == "POST":
+		try:
+			posted = models.StarLog.initFromDictionary(request.get_json()[0])
+		except:
+			traceback.print_exc(file=sys.stderr)
+			return "400", 400
 		return "200", 200
 
 import models
