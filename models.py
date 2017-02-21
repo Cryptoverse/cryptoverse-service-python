@@ -7,32 +7,38 @@ import re
 import util
 
 class StarLog(db.Model):
-    __tablename__ = "starlog"
-    hash = db.Column(db.String(256), primary_key=True)
+    __tablename__ = "star_logs"
+    extend_existing=True
+    
+    id = db.Column(db.Integer, primary_key=True)
+    hash = db.Column(db.String(64))
     height = db.Column(db.Integer)
     chain = db.Column(db.Integer)
     size = db.Column(db.Integer)
-    log_header = db.Column(db.String(240))
+    log_header = db.Column(db.String(255))
     version = db.Column(db.Integer)
-    previous_hash = db.Column(db.String(256))
+    previous_hash = db.Column(db.String(64))
     difficulty = db.Column(db.Integer)
     nonce = db.Column(db.Integer)
     time = db.Column(db.Integer)
-    discovery_hash = db.Column(db.String(256))
+    discovery_hash = db.Column(db.String(64))
 
     def __repr__(self):
         return '<StarLog %r>' % self.hash
 
     def __init__(
+        id,
         hash,
+        height,
+        chain,
+        size,
         log_header,
         version,
         previous_hash,
         difficulty,
         nonce,
         time,
-        state_hash,
-        state
+        discovery_hash
     ):
         if not isinstance(log_header, basestring):
             raise TypeError("Hash is not string")
@@ -64,6 +70,7 @@ class StarLog(db.Model):
         if not util.verifyFieldIsHash(state_hash):
             raise ValueError("state_hash is not a MD5 Hash")
 
+        self.id = id
         self.hash = hash
         self.log_header = log_header
         self.version = version
@@ -77,14 +84,18 @@ class StarLog(db.Model):
     def initFromJson(jsonData):
         obj = json.loads(jsonData)
         starlog = StarLog(
+            obj['id'],
+            obj['hash'],
+            obj['height'],
+            obj['chain'],
+            obj['size'],
             obj['log_header'],
             obj['version'],
             obj['previous_hash'],
             obj['difficulty'],
             obj['nonce'],
             obj['time'],
-            obj['state_hash'],
-            obj['state'])
+            obj['discovery_hash'])
 
         return starlog
 
@@ -106,45 +117,49 @@ class StarLog(db.Model):
 
 
 class StarSystem(db.Model):
-    __tablename__ = "starsystem"
-    starlog_id = db.Column(db.Integer(), primary_key=True)
-    starlog = db.relationship('StarLog', backref=db.backref('starSystems', lazy='dynamic'))
-    fleet = db.Column(db.String(256))
+    __tablename__ = "star_systems"
+    id = db.Column(db.Integer(), primary_key=True)
+    star_log_id = db.Column(db.Integer, db.ForeignKey('star_logs.id'))
+    star_log = db.relationship('StarLog', backref=db.backref('star_systems', lazy='dynamic'))
+    fleet = db.Column(db.String(130))
 
     def __repr__(self):
         return '<StarSystem %r>' % self.id
 
 
 class Deployment(db.Model):
-    __tablename__ = "deployment"
+    __tablename__ = "deployments"
     id = db.Column(db.Integer, primary_key=True)
-    starsystem_id = db.Column(db.Integer, db.ForeignKey('starsystem.id'))
-    starsystem = db.relationship('StarSystem', backref=db.backref('deployments', lazy='dynamic'))
-    fleet = db.Column(db.String(256))
+    star_system_id = db.Column(db.Integer, db.ForeignKey('star_systems.id'))
+    star_system = db.relationship('StarSystem', backref=db.backref('deployments', lazy='dynamic'))
+    fleet = db.Column(db.String(130))
     count = db.Column(db.Integer)
 
     def __repr__(self):
         return '<Deployment %r>' % self.id
 
-
+'''
 class Jump(db.Model):
-    __tablename__ = "jump"
+    __tablename__ = "jumps"
     id = db.Column(db.Integer, primary_key=True)
-    fleet = db.Column(db.String(256))
-    jump_key = db.Column(db.String(256))
-    origin_id = db.Column(db.Integer, db.ForeignKey('starsystem.id'))
-    origin = db.relationship('StarSystem', foreign_keys=origin_id, backref=db.backref('jumpDepartures', lazy='dynamic'))
-    destination_id = db.Column(db.Integer, db.ForeignKey('starsystem.id'))
-    destination = db.relationship('StarSystem',foreign_keys=destination_id , backref=db.backref('jumpArrivals', lazy='dynamic'))
+    fleet = db.Column(db.String(130))
+    jump_key = db.Column(db.String(64))
+    origin_id = db.Column(db.Integer, db.ForeignKey('star_systems.id'))
+    origin = db.relationship('StarSystem', foreign_keys=origin_id, backref=db.backref('star_systems.id', lazy='dynamic'))
+    #origin = db.relationship('StarSystem', foreign_keys=origin_id, backref=db.backref('jumpDepartures', lazy='dynamic'))
+    destination_id = db.Column(db.Integer, db.ForeignKey('star_systems.id'))
+    destination = db.relationship('StarSystem',foreign_keys=destination_id , backref=db.backref('star_systems.id', lazy='dynamic'))
+    #destination = db.relationship('StarSystem',foreign_keys=destination_id , backref=db.backref('jumpArrivals', lazy='dynamic'))
     count = db.Column(db.Integer)
-    hash = db.Column(db.String(256))
-    signature = db.Column(db.String(256))
+    hash = db.Column(db.String(64))
+    signature = db.Column(db.String(255))
 
     def __init__(
+        id,
         fleet,
         jump_key,
-        origin,
-        destination,
+        origin_id,
+        destination_id,
         count,
         hash,
         signature
@@ -187,3 +202,4 @@ class Jump(db.Model):
 
     def __repr__(self):
         return '<Jump %r>' % self.id
+'''
