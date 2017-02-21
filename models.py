@@ -58,15 +58,15 @@ class StarLog(db.Model):
             raise TypeError("time is not int")
         if not isinstance(state_hash, basestring):
             raise TypeError("state_hash is not string")
-        if not isinstance(state, basestring):
-            raise TypeError("state is not string")
+        if state is None:
+            raise TypeError("state is missing")
 
         if not util.verifyFieldIsHash(hash):
-            raise ValueError("hash is not a MD5 Hash")
+            raise ValueError("hash is not a Sha256 Hash")
         if not util.verifyFieldIsHash(previous_hash):
-            raise ValueError("previous_hash is not a MD5 Hash")
+            raise ValueError("previous_hash is not a Sha256 Hash")
         if not util.verifyFieldIsHash(state_hash):
-            raise ValueError("state_hash is not a MD5 Hash")
+            raise ValueError("state_hash is not a Sha256 Hash")
 
         self.hash = hash
         self.log_header = log_header
