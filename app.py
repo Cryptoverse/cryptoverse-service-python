@@ -5,10 +5,12 @@ import sys, traceback
 import os
 import cryptography
 import hashlib
+import json
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ["DB_HOST"]
 db = SQLAlchemy(app)
+isDebug = os.environ["DEBUG"]
 
 @app.route("/")
 def routeIndex():
@@ -18,7 +20,6 @@ def routeIndex():
 @app.route("/star-logs", methods=["GET", "POST"])
 def routeStarLogs():
 	if request.method == "GET":
-		print(models.StarLog.query.all(), file=sys.stderr)
 		return "ok"
 	elif request.method == "POST":
 		try:
@@ -31,4 +32,4 @@ def routeStarLogs():
 import models
 
 if __name__ == "__main__":
-	app.run(debug=os.environ["DEBUG"])
+	app.run(debug=isDebug)

@@ -22,7 +22,7 @@ class StarLog(db.Model):
     nonce = db.Column(db.Integer)
     time = db.Column(db.Integer)
     state_hash = db.Column(db.String(64))
-
+    
     def __repr__(self):
         return '<StarLog %r>' % self.hash
 
@@ -60,7 +60,6 @@ class StarLog(db.Model):
             raise TypeError("state_hash is not string")
         if state is None:
             raise TypeError("state is missing")
-
         if not util.verifyFieldIsHash(hash):
             raise ValueError("hash is not a Sha256 Hash")
         if not util.verifyFieldIsHash(previous_hash):
@@ -109,6 +108,18 @@ class StarLog(db.Model):
         if 'star_systems' in jsonData:
             pass
 
+    def getJson(self):
+        return {
+            'create_time': self.time,
+            'hash': self.hash,
+            'log_header': self.log_header,
+            'version': self.version,
+            'previous_hash': self.previous_hash,
+            'difficulty': self.difficulty,
+            'nonce': self.nonce,
+            'time': self.time,
+            'state_hash': self.state_hash
+        }
 
 
 class StarSystem(db.Model):
