@@ -1,3 +1,5 @@
+from __future__ import print_function
+import sys
 from app import db
 from flask_sqlalchemy import SQLAlchemy
 import hashlib
@@ -75,7 +77,11 @@ class StarLog(db.Model):
             raise ValueError("log_header does not match provided values")
         if not util.verifyHash(hash, log_header):
             raise ValueError("Sha256 of log_header does not match hash")        
-
+        if not util.verifyHash(state_hash, json.dumps(state, separators=(',',':'))):
+            raise ValueError("state_hash does not match actual hash")
+        if not util.verifyJumpSignatures(state['jumps']):
+            raise ValueError("state.jumps are invalid")
+            
         self.hash = hash
         self.log_header = log_header
         self.version = version
@@ -91,6 +97,7 @@ class StarLog(db.Model):
             raise Exception("Length of submission is not less than 1 megabyte")
 
         obj = json.loads(jsonData)
+
         starlog = cls(
             obj['hash'],
             obj['log_header'],
