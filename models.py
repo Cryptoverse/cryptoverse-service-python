@@ -66,11 +66,15 @@ class StarLog(db.Model):
             raise ValueError("previous_hash is not a Sha256 Hash")
         if not util.verifyFieldIsHash(state_hash):
             raise ValueError("state_hash is not a Sha256 Hash")
-        if previous_hash is not "0000000000000000000000000000000000000000000000000000000000000000":
+        if not util.isFirstStarLog(previous_hash):
             if StarLog.query.filter_by(hash=previous_hash).first() is None:
                 raise ValueError("no previous entry with hash "+previous_hash)
-        if not StarLog.query.filter_by(hash=hash).first() is None:
-            raise ValueError("entry with hash "+hash+" already exists")
+            if not StarLog.query.filter_by(hash=hash).first() is None:
+                raise ValueError("entry with hash "+hash+" already exists")
+        if not util.verifyLogHeader(log_header, version, previous_hash, difficulty, nonce, time, state_hash):
+            raise ValueError("log_header does not match provided values")
+        if not util.verifyHash(hash, log_header):
+            raise ValueError("Sha256 of log_header does not match hash")        
 
         self.hash = hash
         self.log_header = log_header
