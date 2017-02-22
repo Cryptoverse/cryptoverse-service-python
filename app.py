@@ -20,10 +20,14 @@ def routeIndex():
 @app.route("/star-logs", methods=["GET", "POST"])
 def routeStarLogs():
 	if request.method == "GET":
+		print(models.StarLog.query.all()[0].getJson(), file=sys.stderr)
 		return "ok"
 	elif request.method == "POST":
 		try:
-			posted = models.StarLog.initFromDictionary(request.get_json()[0])
+			#print(request.data, file=sys.stderr)
+			posted = models.StarLog.initFromJson(request.data)
+			db.session.add(posted)
+			db.session.commit()
 		except:
 			traceback.print_exc(file=sys.stderr)
 			return "400", 400
