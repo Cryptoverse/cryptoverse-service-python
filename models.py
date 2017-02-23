@@ -79,8 +79,10 @@ class StarLog(db.Model):
             raise ValueError("Sha256 of log_header does not match hash")        
         if not util.verifyHash(state_hash, json.dumps(state, separators=(',',':'))):
             raise ValueError("state_hash does not match actual hash")
-        if not util.verifyJumpSignatures(state['jumps']):
-            raise ValueError("state.jumps are invalid")
+
+        for jump in state['jumps']:
+            if not util.verifyJump(jump):
+                raise ValueError("state.jumps are invalid")
             
         self.hash = hash
         self.log_header = log_header

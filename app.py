@@ -6,6 +6,7 @@ import os
 import cryptography
 import hashlib
 import json
+import util
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ["DB_HOST"]
@@ -32,6 +33,34 @@ def routeStarLogs():
 			traceback.print_exc(file=sys.stderr)
 			return "400", 400
 		return "200", 200
+
+# TODO: Move this somewhere?
+if isDebug:
+	@app.route("/debug/sign-jump", methods=["POST"])
+	def routeDebugSignJump():
+		jsonData = request.get_json()
+		try:
+			signature = util.signHash(str(jsonData['private_key']), util.concatJump(jsonData))
+			return json.dumps({
+				'private_key': jsonData['private_key'],
+				'public_key': jsonData['public_key'],
+				'fleet': jsonData['fleet'],
+				'key': jsonData['key'],
+				'origin': jsonData['origin'],
+				'destination': jsonData['destination'],
+				'count': jsonData['count'],
+				'signature': signature
+			}), 200
+		except:
+			return "400", 400
+
+	@app.route("/debug/verify-jump", methods=["POST"])
+	def routeDebugVerifyJump():
+		jsonData = request.get_json()
+		try:
+			return 'valid' if util.verifyJump(jsonData) else 'invalid'
+		except:
+			return "400", 400
 
 import models
 
