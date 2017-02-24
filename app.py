@@ -36,6 +36,15 @@ def routeStarLogs():
 
 # TODO: Move this somewhere?
 if isDebug:
+	@app.route("/debug/hash-star-log", methods=["POST"])
+	def routeDebugHashStarLog():
+		jsonData = request.get_json()
+		try:
+			return json.dumps(util.hashLog(jsonData)), 200
+		except:
+			traceback.print_exc(file=sys.stderr)
+			return "400", 400
+
 	@app.route("/debug/sign-jump", methods=["POST"])
 	def routeDebugSignJump():
 		jsonData = request.get_json()
@@ -52,6 +61,7 @@ if isDebug:
 				'signature': signature
 			}), 200
 		except:
+			traceback.print_exc(file=sys.stderr)
 			return "400", 400
 
 	@app.route("/debug/verify-jump", methods=["POST"])
@@ -60,6 +70,7 @@ if isDebug:
 		try:
 			return 'valid' if util.verifyJump(jsonData) else 'invalid'
 		except:
+			traceback.print_exc(file=sys.stderr)
 			return "400", 400
 
 import models
