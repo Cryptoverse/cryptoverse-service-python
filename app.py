@@ -36,7 +36,7 @@ def routeStarLogs():
 			db.session.add(posted)
 			db.session.commit()
 		except:
-			traceback.print_exc(file=sys.stderr)
+			traceback.print_exc()
 			return "400", 400
 		return "200", 200
 
@@ -48,7 +48,7 @@ if app.debug:
 		try:
 			return json.dumps(util.hashLog(jsonData)), 200
 		except:
-			traceback.print_exc(file=sys.stderr)
+			traceback.print_exc()
 			return "400", 400
 
 	@app.route("/debug/sign-jump", methods=["POST"])
@@ -67,7 +67,7 @@ if app.debug:
 				'signature': signature
 			}), 200
 		except:
-			traceback.print_exc(file=sys.stderr)
+			traceback.print_exc()
 			return "400", 400
 
 	@app.route("/debug/verify-jump", methods=["POST"])
@@ -76,7 +76,7 @@ if app.debug:
 		try:
 			return 'valid' if util.verifyJump(jsonData) else 'invalid'
 		except:
-			traceback.print_exc(file=sys.stderr)
+			traceback.print_exc()
 			return "400", 400
 
 import models

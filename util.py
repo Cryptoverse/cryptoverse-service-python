@@ -95,3 +95,18 @@ def unpackBits(hex):
 		base256 += "00"
 
 	return base256
+
+# Takes the hex form of difficulty and verifies that the hash is less than it
+def verifyDifficulty(hex, hash):
+	if not len(hex) == 8:
+		raise ValueError("hex string must have 8 characters")
+	if not len(hash) == 64:
+		raise ValueError("hash must be at least 64 characters long")
+	mask = unpackBits(hex).rstrip("0")
+	significant = hash[:len(mask)]
+
+	try:
+		return int(significant, 16) < int(mask, 16)
+	except:
+		traceback.print_exc()
+		return False
