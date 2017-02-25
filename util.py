@@ -1,5 +1,5 @@
-from __future__ import print_function
 from M2Crypto import BIO, RSA
+from app import app
 import hashlib
 import sys
 import re

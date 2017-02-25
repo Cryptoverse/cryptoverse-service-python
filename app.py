@@ -1,6 +1,6 @@
-from __future__ import print_function
 from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
+import logging
 import sys, traceback
 import os
 import cryptography
@@ -11,7 +11,14 @@ import util
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ["DB_HOST"]
 db = SQLAlchemy(app)
-isDebug = os.environ["DEBUG"]
+
+@app.before_first_request
+def setup_logging():
+	if not app.debug:
+		# In production mode, add log handler to sys.stderr.
+		app.logger.addHandler(logging.StreamHandler())
+        app.logger.setLevel(logging.INFO)
+	
 
 @app.route("/")
 def routeIndex():
@@ -21,11 +28,10 @@ def routeIndex():
 @app.route("/star-logs", methods=["GET", "POST"])
 def routeStarLogs():
 	if request.method == "GET":
-		print(models.StarLog.query.all()[0].getJson(), file=sys.stderr)
+		app.logger.info(models.StarLog.query.all()[0].getJson())
 		return "ok"
 	elif request.method == "POST":
 		try:
-			#print(request.data, file=sys.stderr)
 			posted = models.StarLog.initFromJson(request.data)
 			db.session.add(posted)
 			db.session.commit()
@@ -35,7 +41,7 @@ def routeStarLogs():
 		return "200", 200
 
 # TODO: Move this somewhere?
-if isDebug:
+if app.debug:
 	@app.route("/debug/hash-star-log", methods=["POST"])
 	def routeDebugHashStarLog():
 		jsonData = request.get_json()
@@ -76,4 +82,4 @@ if isDebug:
 import models
 
 if __name__ == "__main__":
-	app.run(debug=isDebug)
+	app.run()
