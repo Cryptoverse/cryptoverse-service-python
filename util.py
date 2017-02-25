@@ -62,3 +62,36 @@ def hashState(state):
 			concat += deployment['fleet']
 			concat += str(deployment['count'])
 	return sha256(concat)
+
+# Take a hex bits representation of difficulty and return a target hash
+def unpackBits(hex):
+	if not len(hex) == 8:
+		raise ValueError("hex string must have 8 characters")
+
+	digitCount = int(hex[:2], 16)
+
+	if digitCount == 0:
+		digitCount = 3
+
+	digits = []
+	if digitCount == 29:
+		digits = [ hex[4:6], hex[6:8] ]
+	else:
+		digits = [ hex[2:4], hex[4:6], hex[6:8] ]
+	
+	digitCount = min(digitCount, 28)
+	significantCount = len(digits)
+
+	leadingPadding = 28 - digitCount
+	trailingPadding = 28 - (leadingPadding + significantCount)
+
+	base256 = ""
+
+	for i in range(0, leadingPadding + 4):
+		base256 += "00"
+	for i in range(0, significantCount):
+		base256 += digits[i]
+	for i in range(0, trailingPadding):
+		base256 += "00"
+
+	return base256
