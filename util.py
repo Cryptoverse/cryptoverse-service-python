@@ -11,14 +11,22 @@ def isFirstStarLog(previous_hash):
 def sha256(text):
 	return hashlib.sha256(text).hexdigest()
 
+# Takes the integer format of difficulty and returns a string with its hex representation, sans the leading 0x.
+def difficultyToHex(intDifficulty):
+	return hex(intDifficulty)[2:]
+
+# Takes a hex string of difficulty, missing the 0x, and returns the integer from of difficulty.
+def difficultyFromHex(hexDifficulty):
+	return int(intDifficulty, 16)
+
 def verifyFieldIsHash(hash):
 	return re.match(r'^[A-Fa-f0-9]{64}$', hash)
 
-def concatLogHeader(version, previous_hash, difficulty, nonce, time, state_hash):
+def concatStarLogHeader(version, previous_hash, difficulty, nonce, time, state_hash):
 	return "%s%s%s%s%s%s" % (version, previous_hash, difficulty, nonce, time, state_hash)
 
 def verifyLogHeader(log_header, version, previous_hash, difficulty, nonce, time, state_hash):
-	return log_header == concatLogHeader(version, previous_hash, difficulty, nonce, time, state_hash)
+	return log_header == concatStarLogHeader(version, previous_hash, difficulty, nonce, time, state_hash)
 
 def verifyHash(hash, text):
 	return hash == sha256(text)
@@ -46,11 +54,11 @@ def signHash(privateKey, message):
 	signature = privateRsa.sign(hashed, 'sha256')
 	return binascii.hexlify(bytearray(signature))
 
-def hashLog(log):
-	log['state_hash'] = hashState(log['state'])
-	log['log_header'] = concatLogHeader(log['version'], log['previous_hash'], log['difficulty'], log['nonce'], log['time'], log['state_hash'])
-	log['hash'] = sha256(log['log_header'])
-	return log
+def hashStarLog(starLog):
+	starLog['state_hash'] = hashState(starLog['state'])
+	starLog['starLog_header'] = concatStarLogHeader(starLog['version'], starLog['previous_hash'], starLog['difficulty'], starLog['nonce'], starLog['time'], starLog['state_hash'])
+	starLog['hash'] = sha256(starLog['starLog_header'])
+	return starLog
 
 def hashState(state):
 	concat = state['fleet']
@@ -63,11 +71,11 @@ def hashState(state):
 			concat += str(deployment['count'])
 	return sha256(concat)
 
-# Take a hex bits representation of difficulty and return a target hash
-def unpackBits(hex):
-	if not len(hex) == 8:
-		raise ValueError("hex string must have 8 characters")
-
+# Take a integer representation of difficulty and return a target hash.
+def unpackBits(difficulty):
+	if not isinstance(difficulty, int):
+		raise TypeError("difficulty is not int")
+	hex = difficultyToHex(difficulty)
 	digitCount = int(hex[:2], 16)
 
 	if digitCount == 0:
@@ -96,13 +104,14 @@ def unpackBits(hex):
 
 	return base256
 
-# Takes the hex form of difficulty and verifies that the hash is less than it
-def verifyDifficulty(hex, hash):
-	if not len(hex) == 8:
-		raise ValueError("hex string must have 8 characters")
-	if not len(hash) == 64:
-		raise ValueError("hash must be at least 64 characters long")
-	mask = unpackBits(hex).rstrip("0")
+# Takes the integer form of difficulty and verifies that the hash is less than it.
+def verifyDifficulty(difficulty, hash):
+	if not isinstance(difficulty, int):
+		raise TypeError("difficulty is not int")
+	if not verifyFieldIsHash(hash):
+		raise ValueError("hash is invalid")
+
+	mask = unpackBits(difficulty).rstrip("0")
 	significant = hash[:len(mask)]
 
 	try:

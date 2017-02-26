@@ -42,11 +42,22 @@ def routeStarLogs():
 
 # TODO: Move this somewhere?
 if app.debug:
+	import probe
+
 	@app.route("/debug/hash-star-log", methods=["POST"])
 	def routeDebugHashStarLog():
 		jsonData = request.get_json()
 		try:
-			return json.dumps(util.hashLog(jsonData)), 200
+			return json.dumps(util.hashStarLog(jsonData)), 200
+		except:
+			traceback.print_exc()
+			return "400", 400
+
+	@app.route("/debug/probe-star-log", methods=["POST"])
+	def routeDebugProbeStarLog():
+		jsonData = request.get_json()
+		try:
+			return probe.probeStarLog(jsonData), 200
 		except:
 			traceback.print_exc()
 			return "400", 400
