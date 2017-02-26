@@ -6,7 +6,7 @@ import re
 import binascii
 
 def isFirstStarLog(previous_hash):
-	return previous_hash == "0000000000000000000000000000000000000000000000000000000000000000"
+	return previous_hash == '0000000000000000000000000000000000000000000000000000000000000000'
 
 def sha256(text):
 	return hashlib.sha256(text).hexdigest()
@@ -23,7 +23,7 @@ def verifyFieldIsHash(hash):
 	return re.match(r'^[A-Fa-f0-9]{64}$', hash)
 
 def concatStarLogHeader(version, previous_hash, difficulty, nonce, time, state_hash):
-	return "%s%s%s%s%s%s" % (version, previous_hash, difficulty, nonce, time, state_hash)
+	return '%s%s%s%s%s%s' % (version, previous_hash, difficulty, nonce, time, state_hash)
 
 def verifyLogHeader(log_header, version, previous_hash, difficulty, nonce, time, state_hash):
 	return log_header == concatStarLogHeader(version, previous_hash, difficulty, nonce, time, state_hash)
@@ -32,14 +32,14 @@ def verifyHash(hash, text):
 	return hash == sha256(text)
 
 def concatJump(jump):
-	return "%s%s%s%s%s"%(jump['fleet'], jump['key'], jump['origin'], jump['destination'], jump['count'])
+	return '%s%s%s%s%s'%(jump['fleet'], jump['key'], jump['origin'], jump['destination'], jump['count'])
 
 def verifyJump(jump):
 	hashed_header = sha256(concatJump(jump))
 	return verifySignature(str(formatPublicKey(jump['fleet'])), str(jump['signature']), str(hashed_header))	
 
 def formatPublicKey(strippedPublicKey):
-	return "-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----"%(strippedPublicKey)
+	return '-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----'%(strippedPublicKey)
 
 def verifySignature(publicKey, signature, message):
 	try:
@@ -74,7 +74,7 @@ def hashState(state):
 # Take a integer representation of difficulty and return a target hash.
 def unpackBits(difficulty):
 	if not isinstance(difficulty, int):
-		raise TypeError("difficulty is not int")
+		raise TypeError('difficulty is not int')
 	hex = difficultyToHex(difficulty)
 	digitCount = int(hex[:2], 16)
 
@@ -93,25 +93,25 @@ def unpackBits(difficulty):
 	leadingPadding = 28 - digitCount
 	trailingPadding = 28 - (leadingPadding + significantCount)
 
-	base256 = ""
+	base256 = ''
 
 	for i in range(0, leadingPadding + 4):
-		base256 += "00"
+		base256 += '00'
 	for i in range(0, significantCount):
 		base256 += digits[i]
 	for i in range(0, trailingPadding):
-		base256 += "00"
+		base256 += '00'
 
 	return base256
 
 # Takes the integer form of difficulty and verifies that the hash is less than it.
 def verifyDifficulty(difficulty, hash):
 	if not isinstance(difficulty, int):
-		raise TypeError("difficulty is not int")
+		raise TypeError('difficulty is not int')
 	if not verifyFieldIsHash(hash):
-		raise ValueError("hash is invalid")
+		raise ValueError('hash is invalid')
 
-	mask = unpackBits(difficulty).rstrip("0")
+	mask = unpackBits(difficulty).rstrip('0')
 	significant = hash[:len(mask)]
 
 	try:

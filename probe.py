@@ -8,7 +8,7 @@ import copy
 import time
 
 def probeStarLog(starLog):
-	app.logger.info("ps count: %s" % (multiprocessing.cpu_count()))
+	app.logger.info('ps count: %s' % (multiprocessing.cpu_count()))
 	processCount = 8
 	minNonce = starLog['nonce']
 	maxNonce = sys.maxint - minNonce
@@ -49,13 +49,13 @@ def probeStarLog(starLog):
 		elapsedSeconds = (now - started).total_seconds()
 		hashesPerSecond = totalTries / elapsedSeconds
 		elapsedMinutes = elapsedSeconds / 60
-		app.logger.info("%.1f minutes elapsed, %s hashes at %s per second" % (elapsedMinutes, '{:,}'.format(totalTries), '{:,.2f}'.format(hashesPerSecond)))
+		app.logger.info('%.1f minutes elapsed, %s hashes at %s per second' % (elapsedMinutes, '{:,}'.format(totalTries), '{:,.2f}'.format(hashesPerSecond)))
 
-	app.logger.info(("Found! Nonce: %s" % (validNonce)) if localFound else "Not found!")
+	app.logger.info(('Found! Nonce: %s' % (validNonce)) if localFound else 'Not found!')
 
 
 def probeStarLogWorker(id, queue, starLog, startNonce, endNonce):
-	hash = ""
+	hash = ''
 	found = False
 	tries = 0
 	started = datetime.now()
@@ -77,9 +77,9 @@ def probeStarLogWorker(id, queue, starLog, startNonce, endNonce):
 		tries += 1
 		
 	if found:
-		app.logger.info("Found! %s tries to found nonce %s producing %s" % (tries, starLog['nonce'], starLog['hash']))
+		app.logger.info('Found! %s tries to found nonce %s producing %s' % (tries, starLog['nonce'], starLog['hash']))
 		queue.put([True, starLog['nonce']])
 	else:
-		app.logger.info("Not found after %s tries!" % (tries))
+		app.logger.info('Not found after %s tries!' % (tries))
 
-	return "Found!" if found else "Not found!"
+	return 'Found!' if found else 'Not found!'

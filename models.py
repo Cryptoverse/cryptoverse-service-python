@@ -8,7 +8,7 @@ import re
 import util
 
 class StarLog(db.Model):
-    __tablename__ = "star_logs"
+    __tablename__ = 'star_logs'
     extend_existing=True
 
     id = db.Column(db.Integer, primary_key=True)
@@ -40,48 +40,48 @@ class StarLog(db.Model):
         state
     ):
         if not isinstance(log_header, basestring):
-            raise TypeError("Hash is not string")
+            raise TypeError('Hash is not string')
         if not isinstance(log_header, basestring):
-            raise TypeError("log_header is wrong type")
+            raise TypeError('log_header is wrong type')
         if not isinstance(version, int):
-            raise TypeError("version is not int")
+            raise TypeError('version is not int')
         if not isinstance(log_header, basestring):
-            raise TypeError("log_header is not string")
+            raise TypeError('log_header is not string')
         if not isinstance(version, int):
-            raise TypeError("version is not int")
+            raise TypeError('version is not int')
         if not isinstance(previous_hash, basestring):
-            raise TypeError("previous_hash is not string")
+            raise TypeError('previous_hash is not string')
         if not isinstance(difficulty, int):
-            raise TypeError("difficulty is not int")
+            raise TypeError('difficulty is not int')
         if not isinstance(nonce, int):
-            raise TypeError("nonce is not int")
+            raise TypeError('nonce is not int')
         if not isinstance(time, int):
-            raise TypeError("time is not int")
+            raise TypeError('time is not int')
         if not isinstance(state_hash, basestring):
-            raise TypeError("state_hash is not string")
+            raise TypeError('state_hash is not string')
         if state is None:
-            raise TypeError("state is missing")
+            raise TypeError('state is missing')
         if not util.verifyFieldIsHash(hash):
-            raise ValueError("hash is not a Sha256 Hash")
+            raise ValueError('hash is not a Sha256 Hash')
         if not util.verifyFieldIsHash(previous_hash):
-            raise ValueError("previous_hash is not a Sha256 Hash")
+            raise ValueError('previous_hash is not a Sha256 Hash')
         if not util.verifyFieldIsHash(state_hash):
-            raise ValueError("state_hash is not a Sha256 Hash")
+            raise ValueError('state_hash is not a Sha256 Hash')
         if not util.isFirstStarLog(previous_hash):
             if StarLog.query.filter_by(hash=previous_hash).first() is None:
-                raise ValueError("no previous entry with hash "+previous_hash)
+                raise ValueError('no previous entry with hash '+previous_hash)
             if not StarLog.query.filter_by(hash=hash).first() is None:
-                raise ValueError("entry with hash "+hash+" already exists")
+                raise ValueError('entry with hash '+hash+' already exists')
         if not util.verifyLogHeader(log_header, version, previous_hash, difficulty, nonce, time, state_hash):
-            raise ValueError("log_header does not match provided values")
+            raise ValueError('log_header does not match provided values')
         if not util.verifyHash(hash, log_header):
-            raise ValueError("Sha256 of log_header does not match hash")        
+            raise ValueError('Sha256 of log_header does not match hash')        
         if not state_hash == util.hashState(state):
-            raise ValueError("state_hash does not match actual hash")
+            raise ValueError('state_hash does not match actual hash')
 
         for jump in state['jumps']:
             if not util.verifyJump(jump):
-                raise ValueError("state.jumps are invalid")
+                raise ValueError('state.jumps are invalid')
             
         self.hash = hash
         self.log_header = log_header
@@ -95,7 +95,7 @@ class StarLog(db.Model):
     @classmethod
     def initFromJson(cls, jsonData):
         if 999999 < len(jsonData):
-            raise Exception("Length of submission is not less than 1 megabyte")
+            raise Exception('Length of submission is not less than 1 megabyte')
 
         obj = json.loads(jsonData)
 
@@ -145,7 +145,7 @@ class StarLog(db.Model):
 
 '''
 class StarSystem(db.Model):
-    __tablename__ = "star_systems"
+    __tablename__ = 'star_systems'
     extend_existing=True
 
     id = db.Column(db.Integer(), primary_key=True)
@@ -158,7 +158,7 @@ class StarSystem(db.Model):
 
 
 class Deployment(db.Model):
-    __tablename__ = "deployments"
+    __tablename__ = 'deployments'
     extend_existing=True
 
     id = db.Column(db.Integer, primary_key=True)
@@ -171,7 +171,7 @@ class Deployment(db.Model):
         return '<Deployment %r>' % self.id
 
 class StarLogJump(db.Model):
-    __tablename__ = "star_log_jumps"
+    __tablename__ = 'star_log_jumps'
     extend_existing=True
 
     id = db.Column(db.Integer, primary_key=True)
@@ -190,18 +190,18 @@ class StarLogJump(db.Model):
         index
     ):
         if not isinstance(jump_id, int):
-            raise TypeError("jump_id is not int")
+            raise TypeError('jump_id is not int')
         if not isinstance(star_log_id, int):
-            raise TypeError("star_log_id is not int")
+            raise TypeError('star_log_id is not int')
         if not isinstance(index, int):
-            raise TypeError("index is not int")
+            raise TypeError('index is not int')
 
         self.jump_id = jump_id
         self.star_log_id = star_log_id
         self.index = index
 
 class Jump(db.Model):
-    __tablename__ = "jumps"
+    __tablename__ = 'jumps'
     extend_existing=True
 
     id = db.Column(db.Integer, primary_key=True)
@@ -225,37 +225,37 @@ class Jump(db.Model):
         signature
     ):
         if not isinstance(fleet, basestring):
-            raise TypeError("Fleet is not of type BaseString")
+            raise TypeError('Fleet is not of type BaseString')
         if not isinstance(jump_key, basestring):
-            raise TypeError("jump_key is not of type BaseString")
+            raise TypeError('jump_key is not of type BaseString')
         if not isinstance(origin, [basestring,StarSystem]):
-            raise TypeError("origin is not of type BaseString or StarSystem")
+            raise TypeError('origin is not of type BaseString or StarSystem')
         if not isinstance(destination, [basestring,StarSystem]):
-            raise TypeError("destination is not of type BaseString or StarSystem")
+            raise TypeError('destination is not of type BaseString or StarSystem')
         if not isinstance(count, int):
-            raise TypeError("count is not of type int")
+            raise TypeError('count is not of type int')
         if not isinstance(hash, basestring):
-            raise TypeError("signature is not of type int")
+            raise TypeError('signature is not of type int')
 
         if count < 1:
-            raise ValueError("jumps cannot be fewer than one")
+            raise ValueError('jumps cannot be fewer than one')
 
         if isinstance(origin, basestring):
             if not util.verifyFieldIsHash(origin):
-                raise ValueError("origin (of type basestring) isn't an MD5 hash")
+                raise ValueError('origin (of type basestring) isn't an MD5 hash')
             self.origin = db.session.query(StarLog).filter(Starlog.hash==origin).first()
         else:
             self.origin = origin
 
         if isinstance(destination, basestring):
             if not util.verifyFieldIsHash(destination):
-                raise ValueError("destination (of type basestring) isn't an MD5 hash")
+                raise ValueError('destination (of type basestring) isn't an MD5 hash')
             self.destination = db.session.query(StarLog).filter(Starlog.hash==destination).first()
         else:
             self.destination = destination
 
         if self.destination==self.origin:
-            raise ValueError("Destination and origin cannot be the same")
+            raise ValueError('Destination and origin cannot be the same')
             
         hashed = hashlib.sha256(fleet+jump_key+self.origin+self.destination+str(count))
 
