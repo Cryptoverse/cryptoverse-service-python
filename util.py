@@ -1,5 +1,9 @@
-from M2Crypto import BIO, RSA
-from app import app
+# from M2Crypto import BIO, RSA
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization, hashes
+import cryptography
+import app
 import hashlib
 import sys
 import re
@@ -41,11 +45,25 @@ def verifyJump(jump):
 def formatPublicKey(strippedPublicKey):
 	return "-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----"%(strippedPublicKey)
 
-def verifySignature(publicKey, signature, message):
+def verifySignatureM2(publicKey, signature, message):
 	try:
 		publicRsa = RSA.load_pub_key_bio(BIO.MemoryBuffer(publicKey))
 		return publicRsa.verify(bytes(message), binascii.unhexlify(bytearray(signature)), 'sha256') == 1
 	except:
+		return False
+
+def verifySignature(publicKey, signature, message):
+	try:
+		publicRsa = load_pem_private_key(bytes(publicKey), password=None, backend=default_backend())
+		publicRsa.verify(
+			signature,
+			message,
+			"",
+			hashes.SHA256()
+		)
+		return True
+	except Exception as e:
+		print(e)
 		return False
 
 def signHash(privateKey, message):
