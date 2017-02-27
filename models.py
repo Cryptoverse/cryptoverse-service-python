@@ -1,5 +1,5 @@
 import json
-from app import db
+from app import app, db
 import util
 
 class StarLog(db.Model):
@@ -22,7 +22,7 @@ class StarLog(db.Model):
 	def __repr__(self):
 		return '<StarLog %r>' % self.hash
 
-	def __init__(self, jsonData):
+	def __init__(self, jsonData, session):
 		if 999999 < len(jsonData):
 			raise Exception('Length of submission is not less than 1 megabyte')
 
@@ -50,20 +50,23 @@ class StarLog(db.Model):
 			raise TypeError('state_hash is not string')
 		if jsonStarLog['state'] is None:
 			raise TypeError('state is missing')
-		if not util.verifyFieldIsSha256(hash):
+		if not util.verifyFieldIsSha256(jsonStarLog['hash']):
 			raise ValueError('hash is not a Sha256 Hash')
 		if not util.verifyFieldIsSha256(jsonStarLog['previous_hash']):
 			raise ValueError('previous_hash is not a Sha256 Hash')
 		if not util.verifyFieldIsSha256(jsonStarLog['state_hash']):
 			raise ValueError('state_hash is not a Sha256 Hash')
 		if not util.isFirstStarLog(jsonStarLog['previous_hash']):
-			if StarLog.query.filter_by(hash=jsonStarLog['previous_hash']).first() is None:
+			app.logger.info(jsonStarLog['previous_hash'])
+			app.logger.info(session.query(StarLog).filter_by(hash=jsonStarLog['previous_hash']).first())
+			app.logger.info(session.query(StarLog).filter_by(hash=jsonStarLog['previous_hash']).first() is None)
+			if session.query(StarLog).filter_by(hash=jsonStarLog['previous_hash']).first() is None:
 				raise ValueError('no previous entry with hash '+jsonStarLog['previous_hash'])
-			if not StarLog.query.filter_by(hash=hash).first() is None:
-				raise ValueError('entry with hash '+hash+' already exists')
+			if not session.query(StarLog).filter_by(hash=jsonStarLog['hash']).first() is None:
+				raise ValueError('entry with hash %s already exists' % (jsonStarLog['hash']))
 		if not util.verifyLogHeader(jsonStarLog):
 			raise ValueError('log_header does not match provided values')
-		if not util.verifySha256(hash, jsonStarLog['log_header']):
+		if not util.verifySha256(jsonStarLog['hash'], jsonStarLog['log_header']):
 			raise ValueError('Sha256 of log_header does not match hash')
 		if not jsonStarLog['state_hash'] == util.hashState(jsonStarLog['state']):
 			raise ValueError('state_hash does not match actual hash')
@@ -72,7 +75,7 @@ class StarLog(db.Model):
 			if not util.verifyJump(jump):
 				raise ValueError('state.jumps are invalid')
 
-		self.hash = hash
+		self.hash = jsonStarLog['hash']
 		self.log_header = jsonStarLog['log_header']
 		self.version = jsonStarLog['version']
 		self.previous_hash = jsonStarLog['previous_hash']

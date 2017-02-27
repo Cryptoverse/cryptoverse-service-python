@@ -4,12 +4,13 @@ import os
 import json
 from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
-import util
-import models
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DB_HOST']
 db = SQLAlchemy(app)
+
+import util
+import models
 
 @app.before_first_request
 def setupLogging():
@@ -30,7 +31,7 @@ def routeStarLogs():
 		return 'ok'
 	elif request.method == 'POST':
 		try:
-			posted = models.StarLog(request.data)
+			posted = models.StarLog(request.data, db.session)
 			db.session.add(posted)
 			db.session.commit()
 		except:
@@ -55,7 +56,8 @@ if app.debug:
 	def routeDebugProbeStarLog():
 		try:
 			jsonData = request.get_json()
-			return probe.probeStarLog(jsonData), 200
+			result = probe.probeStarLog(jsonData)
+			return json.dumps(result[1]) , 200
 		except:
 			traceback.print_exc()
 			return '400', 400

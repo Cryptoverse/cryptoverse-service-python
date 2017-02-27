@@ -3,6 +3,7 @@ import hashlib
 import re
 import binascii
 import traceback
+import time
 from M2Crypto import BIO, RSA
 
 difficultyFudge = int(os.getenv('DIFFICULTY_FUDGE', 0))
@@ -13,8 +14,9 @@ if not 0 <= difficultyFudge <= 8:
 def isFirstStarLog(previous_hash):
 	return previous_hash == '0000000000000000000000000000000000000000000000000000000000000000'
 
+# Returns the Sha256 hash of the provided string, or the hash of nothing if None is passed.
 def sha256(text):
-	return hashlib.sha256(text).hexdigest()
+	return hashlib.sha256('' if text is None else text).hexdigest()
 
 # Takes the integer format of difficulty and returns a string with its hex representation, sans the leading 0x.
 def difficultyToHex(intDifficulty):
@@ -61,8 +63,8 @@ def signHash(privateKey, message):
 
 def hashStarLog(jsonStarLog):
 	jsonStarLog['state_hash'] = hashState(jsonStarLog['state'])
-	jsonStarLog['starLog_header'] = concatStarLogHeader(jsonStarLog)
-	jsonStarLog['hash'] = sha256(jsonStarLog['starLog_header'])
+	jsonStarLog['log_header'] = concatStarLogHeader(jsonStarLog)
+	jsonStarLog['hash'] = sha256(jsonStarLog['log_header'])
 	return jsonStarLog
 
 def hashState(state):
@@ -126,3 +128,7 @@ def verifyDifficulty(difficulty, sha):
 	except:
 		traceback.print_exc()
 		return False
+
+# Someone always gets GMT instead of UTC, so use this.
+def getTime():
+	return int(time.time())
