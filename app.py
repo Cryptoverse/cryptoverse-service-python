@@ -1,12 +1,11 @@
+import traceback
+import logging
+import os
+import json
 from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
-import logging
-import sys, traceback
-import os
-import cryptography
-import hashlib
-import json
 import util
+import models
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DB_HOST']
@@ -18,8 +17,7 @@ def setupLogging():
 	if not app.debug:
 		# In production mode, add log handler to sys.stderr.
 		app.logger.addHandler(logging.StreamHandler())
-        app.logger.setLevel(logging.INFO)
-	
+		app.logger.setLevel(logging.INFO)
 
 @app.route('/')
 def routeIndex():
@@ -90,8 +88,6 @@ if app.debug:
 		except:
 			traceback.print_exc()
 			return '400', 400
-
-import models
 
 if __name__ == '__main__':
 	app.run()

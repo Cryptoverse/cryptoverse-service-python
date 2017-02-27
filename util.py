@@ -1,9 +1,8 @@
-from M2Crypto import BIO, RSA
-from app import app
 import hashlib
-import sys
 import re
 import binascii
+import traceback
+from M2Crypto import BIO, RSA
 
 def isFirstStarLog(previous_hash):
 	return previous_hash == '0000000000000000000000000000000000000000000000000000000000000000'
@@ -17,16 +16,16 @@ def difficultyToHex(intDifficulty):
 
 # Takes a hex string of difficulty, missing the 0x, and returns the integer from of difficulty.
 def difficultyFromHex(hexDifficulty):
-	return int(intDifficulty, 16)
+	return int(hexDifficulty, 16)
 
 def verifyFieldIsHash(hash):
 	return re.match(r'^[A-Fa-f0-9]{64}$', hash)
 
-def concatStarLogHeader(version, previous_hash, difficulty, nonce, time, state_hash):
-	return '%s%s%s%s%s%s' % (version, previous_hash, difficulty, nonce, time, state_hash)
+def concatStarLogHeader(jsonStarLog):
+	return '%s%s%s%s%s%s' % (jsonStarLog['version'], jsonStarLog['previous_hash'], jsonStarLog['difficulty'], jsonStarLog['nonce'], jsonStarLog['time'], jsonStarLog['state_hash'])
 
-def verifyLogHeader(log_header, version, previous_hash, difficulty, nonce, time, state_hash):
-	return log_header == concatStarLogHeader(version, previous_hash, difficulty, nonce, time, state_hash)
+def verifyLogHeader(jsonStarLog):
+	return jsonStarLog['log_header'] == concatStarLogHeader(jsonStarLog)
 
 def verifyHash(hash, text):
 	return hash == sha256(text)
@@ -36,7 +35,7 @@ def concatJump(jump):
 
 def verifyJump(jump):
 	hashed_header = sha256(concatJump(jump))
-	return verifySignature(str(formatPublicKey(jump['fleet'])), str(jump['signature']), str(hashed_header))	
+	return verifySignature(str(formatPublicKey(jump['fleet'])), str(jump['signature']), str(hashed_header))
 
 def formatPublicKey(strippedPublicKey):
 	return '-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----'%(strippedPublicKey)
@@ -54,11 +53,11 @@ def signHash(privateKey, message):
 	signature = privateRsa.sign(hashed, 'sha256')
 	return binascii.hexlify(bytearray(signature))
 
-def hashStarLog(starLog):
-	starLog['state_hash'] = hashState(starLog['state'])
-	starLog['starLog_header'] = concatStarLogHeader(starLog['version'], starLog['previous_hash'], starLog['difficulty'], starLog['nonce'], starLog['time'], starLog['state_hash'])
-	starLog['hash'] = sha256(starLog['starLog_header'])
-	return starLog
+def hashStarLog(jsonStarLog):
+	jsonStarLog['state_hash'] = hashState(jsonStarLog['state'])
+	jsonStarLog['starLog_header'] = concatStarLogHeader(jsonStarLog)
+	jsonStarLog['hash'] = sha256(jsonStarLog['starLog_header'])
+	return jsonStarLog
 
 def hashState(state):
 	concat = state['fleet']
@@ -86,7 +85,7 @@ def unpackBits(difficulty):
 		digits = [ hex[4:6], hex[6:8] ]
 	else:
 		digits = [ hex[2:4], hex[4:6], hex[6:8] ]
-	
+
 	digitCount = min(digitCount, 28)
 	significantCount = len(digits)
 
