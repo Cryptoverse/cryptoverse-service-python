@@ -1,8 +1,14 @@
+import os
 import hashlib
 import re
 import binascii
 import traceback
 from M2Crypto import BIO, RSA
+
+difficultyFudge = int(os.getenv('DIFFICULTY_FUDGE', 0))
+
+if not 0 <= difficultyFudge <= 8:
+	raise ValueError('DIFFICULTY_FUDGE must be a value from 0 to 8 (inclusive)')
 
 def isFirstStarLog(previous_hash):
 	return previous_hash == '0000000000000000000000000000000000000000000000000000000000000000'
@@ -100,7 +106,9 @@ def unpackBits(difficulty):
 		base256 += digits[i]
 	for i in range(0, trailingPadding):
 		base256 += '00'
-
+	
+	if 0 < difficultyFudge:
+		base256 = base256[difficultyFudge:] + base256[:difficultyFudge]
 	return base256
 
 # Takes the integer form of difficulty and verifies that the hash is less than it.
