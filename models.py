@@ -1,6 +1,5 @@
 import json
 from app import db
-#from flask_sqlalchemy import SQLAlchemy
 import util
 
 class StarLog(db.Model):
@@ -26,9 +25,9 @@ class StarLog(db.Model):
 	def __init__(self, jsonData):
 		if 999999 < len(jsonData):
 			raise Exception('Length of submission is not less than 1 megabyte')
-		
+
 		jsonStarLog = json.loads(jsonData)
-		
+
 		if not isinstance(jsonStarLog['log_header'], basestring):
 			raise TypeError('Hash is not string')
 		if not isinstance(jsonStarLog['log_header'], basestring):
@@ -51,11 +50,11 @@ class StarLog(db.Model):
 			raise TypeError('state_hash is not string')
 		if jsonStarLog['state'] is None:
 			raise TypeError('state is missing')
-		if not util.verifyFieldIsHash(hash):
+		if not util.verifyFieldIsSha256(hash):
 			raise ValueError('hash is not a Sha256 Hash')
-		if not util.verifyFieldIsHash(jsonStarLog['previous_hash']):
+		if not util.verifyFieldIsSha256(jsonStarLog['previous_hash']):
 			raise ValueError('previous_hash is not a Sha256 Hash')
-		if not util.verifyFieldIsHash(jsonStarLog['state_hash']):
+		if not util.verifyFieldIsSha256(jsonStarLog['state_hash']):
 			raise ValueError('state_hash is not a Sha256 Hash')
 		if not util.isFirstStarLog(jsonStarLog['previous_hash']):
 			if StarLog.query.filter_by(hash=jsonStarLog['previous_hash']).first() is None:
@@ -64,7 +63,7 @@ class StarLog(db.Model):
 				raise ValueError('entry with hash '+hash+' already exists')
 		if not util.verifyLogHeader(jsonStarLog):
 			raise ValueError('log_header does not match provided values')
-		if not util.verifyHash(hash, jsonStarLog['log_header']):
+		if not util.verifySha256(hash, jsonStarLog['log_header']):
 			raise ValueError('Sha256 of log_header does not match hash')
 		if not jsonStarLog['state_hash'] == util.hashState(jsonStarLog['state']):
 			raise ValueError('state_hash does not match actual hash')

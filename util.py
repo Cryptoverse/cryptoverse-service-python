@@ -18,8 +18,8 @@ def difficultyToHex(intDifficulty):
 def difficultyFromHex(hexDifficulty):
 	return int(hexDifficulty, 16)
 
-def verifyFieldIsHash(hash):
-	return re.match(r'^[A-Fa-f0-9]{64}$', hash)
+def verifyFieldIsSha256(sha):
+	return re.match(r'^[A-Fa-f0-9]{64}$', sha)
 
 def concatStarLogHeader(jsonStarLog):
 	return '%s%s%s%s%s%s' % (jsonStarLog['version'], jsonStarLog['previous_hash'], jsonStarLog['difficulty'], jsonStarLog['nonce'], jsonStarLog['time'], jsonStarLog['state_hash'])
@@ -27,8 +27,8 @@ def concatStarLogHeader(jsonStarLog):
 def verifyLogHeader(jsonStarLog):
 	return jsonStarLog['log_header'] == concatStarLogHeader(jsonStarLog)
 
-def verifyHash(hash, text):
-	return hash == sha256(text)
+def verifySha256(sha, text):
+	return sha == sha256(text)
 
 def concatJump(jump):
 	return '%s%s%s%s%s'%(jump['fleet'], jump['key'], jump['origin'], jump['destination'], jump['count'])
@@ -74,17 +74,17 @@ def hashState(state):
 def unpackBits(difficulty):
 	if not isinstance(difficulty, int):
 		raise TypeError('difficulty is not int')
-	hex = difficultyToHex(difficulty)
-	digitCount = int(hex[:2], 16)
+	sha = difficultyToHex(difficulty)
+	digitCount = int(sha[:2], 16)
 
 	if digitCount == 0:
 		digitCount = 3
 
 	digits = []
 	if digitCount == 29:
-		digits = [ hex[4:6], hex[6:8] ]
+		digits = [ sha[4:6], sha[6:8] ]
 	else:
-		digits = [ hex[2:4], hex[4:6], hex[6:8] ]
+		digits = [ sha[2:4], sha[4:6], sha[6:8] ]
 
 	digitCount = min(digitCount, 28)
 	significantCount = len(digits)
@@ -104,14 +104,14 @@ def unpackBits(difficulty):
 	return base256
 
 # Takes the integer form of difficulty and verifies that the hash is less than it.
-def verifyDifficulty(difficulty, hash):
+def verifyDifficulty(difficulty, sha):
 	if not isinstance(difficulty, int):
 		raise TypeError('difficulty is not int')
-	if not verifyFieldIsHash(hash):
+	if not verifyFieldIsSha256(sha):
 		raise ValueError('hash is invalid')
 
 	mask = unpackBits(difficulty).rstrip('0')
-	significant = hash[:len(mask)]
+	significant = sha[:len(mask)]
 
 	try:
 		return int(significant, 16) < int(mask, 16)

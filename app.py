@@ -31,7 +31,7 @@ def routeStarLogs():
 		return 'ok'
 	elif request.method == 'POST':
 		try:
-			posted = models.StarLog.initFromJson(request.data)
+			posted = models.StarLog(request.data)
 			db.session.add(posted)
 			db.session.commit()
 		except:
