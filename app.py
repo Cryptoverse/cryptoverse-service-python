@@ -10,7 +10,10 @@ import models
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DB_HOST']
 db = SQLAlchemy(app)
-difficultyFudge = os.getenv('DIFFICULTY_FUDGE', 0)
+difficultyFudge = int(os.getenv('DIFFICULTY_FUDGE', 0))
+
+if not 0 <= difficultyFudge <= 6:
+	raise ValueError('DIFFICULTY_FUDGE must be a value from 0 to 6 (inclusive)')
 
 @app.before_first_request
 def setupLogging():
