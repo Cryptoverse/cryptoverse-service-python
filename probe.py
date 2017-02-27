@@ -1,14 +1,15 @@
-from app import app
 from datetime import datetime
 from multiprocessing import Process, Queue
 import multiprocessing
-import sys
-import util
+import traceback
 import copy
 import time
+import sys
+import util
+from app import app
 
 def probeStarLog(starLog):
-	app.logger.info("ps count: %s" % (multiprocessing.cpu_count()))
+	app.logger.info('ps count: %s' % (multiprocessing.cpu_count()))
 	processCount = 8
 	minNonce = starLog['nonce']
 	maxNonce = sys.maxint - minNonce
@@ -25,7 +26,7 @@ def probeStarLog(starLog):
 	for i in range(0, processCount):
 		start = minNonce + (i * nonceRange)
 		end = start + nonceRange
-		process = Process(target=probeStarLogWorker, args=(i, queue, copy.deepcopy(starLog), start, end))
+		process = Process(target=probeStarLogWorker, args=(queue, copy.deepcopy(starLog), start, end))
 		processes.append(process)
 		process.start()
 		time.sleep(0.1)
@@ -43,19 +44,16 @@ def probeStarLog(starLog):
 					validNonce = entry[1]
 			except:
 				traceback.print_exc()
-				pass
-		
+
 		now = datetime.now()
 		elapsedSeconds = (now - started).total_seconds()
 		hashesPerSecond = totalTries / elapsedSeconds
 		elapsedMinutes = elapsedSeconds / 60
-		app.logger.info("%.1f minutes elapsed, %s hashes at %s per second" % (elapsedMinutes, '{:,}'.format(totalTries), '{:,.2f}'.format(hashesPerSecond)))
+		app.logger.info('%.1f minutes elapsed, %s hashes at %s per second' % (elapsedMinutes, '{:,}'.format(totalTries), '{:,.2f}'.format(hashesPerSecond)))
 
-	app.logger.info(("Found! Nonce: %s" % (validNonce)) if localFound else "Not found!")
+	app.logger.info(('Found! Nonce: %s' % (validNonce)) if found else 'Not found!')
 
-
-def probeStarLogWorker(id, queue, starLog, startNonce, endNonce):
-	hash = ""
+def probeStarLogWorker(queue, starLog, startNonce, endNonce):
 	found = False
 	tries = 0
 	started = datetime.now()
@@ -75,11 +73,11 @@ def probeStarLogWorker(id, queue, starLog, startNonce, endNonce):
 			except:
 				pass
 		tries += 1
-		
+
 	if found:
-		app.logger.info("Found! %s tries to found nonce %s producing %s" % (tries, starLog['nonce'], starLog['hash']))
+		app.logger.info('Found! %s tries to found nonce %s producing %s' % (tries, starLog['nonce'], starLog['hash']))
 		queue.put([True, starLog['nonce']])
 	else:
-		app.logger.info("Not found after %s tries!" % (tries))
+		app.logger.info('Not found after %s tries!' % (tries))
 
-	return "Found!" if found else "Not found!"
+	return 'Found!' if found else 'Not found!'

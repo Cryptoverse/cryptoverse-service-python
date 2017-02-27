@@ -1,16 +1,11 @@
-# from M2Crypto import BIO, RSA
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization, hashes
-import cryptography
-import app
 import hashlib
-import sys
 import re
 import binascii
+import traceback
+from M2Crypto import BIO, RSA
 
 def isFirstStarLog(previous_hash):
-	return previous_hash == "0000000000000000000000000000000000000000000000000000000000000000"
+	return previous_hash == '0000000000000000000000000000000000000000000000000000000000000000'
 
 def sha256(text):
 	return hashlib.sha256(text).hexdigest()
@@ -21,49 +16,35 @@ def difficultyToHex(intDifficulty):
 
 # Takes a hex string of difficulty, missing the 0x, and returns the integer from of difficulty.
 def difficultyFromHex(hexDifficulty):
-	return int(intDifficulty, 16)
+	return int(hexDifficulty, 16)
 
-def verifyFieldIsHash(hash):
-	return re.match(r'^[A-Fa-f0-9]{64}$', hash)
+def verifyFieldIsSha256(sha):
+	return re.match(r'^[A-Fa-f0-9]{64}$', sha)
 
-def concatStarLogHeader(version, previous_hash, difficulty, nonce, time, state_hash):
-	return "%s%s%s%s%s%s" % (version, previous_hash, difficulty, nonce, time, state_hash)
+def concatStarLogHeader(jsonStarLog):
+	return '%s%s%s%s%s%s' % (jsonStarLog['version'], jsonStarLog['previous_hash'], jsonStarLog['difficulty'], jsonStarLog['nonce'], jsonStarLog['time'], jsonStarLog['state_hash'])
 
-def verifyLogHeader(log_header, version, previous_hash, difficulty, nonce, time, state_hash):
-	return log_header == concatStarLogHeader(version, previous_hash, difficulty, nonce, time, state_hash)
+def verifyLogHeader(jsonStarLog):
+	return jsonStarLog['log_header'] == concatStarLogHeader(jsonStarLog)
 
-def verifyHash(hash, text):
-	return hash == sha256(text)
+def verifySha256(sha, text):
+	return sha == sha256(text)
 
 def concatJump(jump):
-	return "%s%s%s%s%s"%(jump['fleet'], jump['key'], jump['origin'], jump['destination'], jump['count'])
+	return '%s%s%s%s%s'%(jump['fleet'], jump['key'], jump['origin'], jump['destination'], jump['count'])
 
 def verifyJump(jump):
 	hashed_header = sha256(concatJump(jump))
-	return verifySignature(str(formatPublicKey(jump['fleet'])), str(jump['signature']), str(hashed_header))	
+	return verifySignature(str(formatPublicKey(jump['fleet'])), str(jump['signature']), str(hashed_header))
 
 def formatPublicKey(strippedPublicKey):
-	return "-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----"%(strippedPublicKey)
+	return '-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----'%(strippedPublicKey)
 
-def verifySignatureM2(publicKey, signature, message):
+def verifySignature(publicKey, signature, message):
 	try:
 		publicRsa = RSA.load_pub_key_bio(BIO.MemoryBuffer(publicKey))
 		return publicRsa.verify(bytes(message), binascii.unhexlify(bytearray(signature)), 'sha256') == 1
 	except:
-		return False
-
-def verifySignature(publicKey, signature, message):
-	try:
-		publicRsa = load_pem_private_key(bytes(publicKey), password=None, backend=default_backend())
-		publicRsa.verify(
-			signature,
-			message,
-			"",
-			hashes.SHA256()
-		)
-		return True
-	except Exception as e:
-		print(e)
 		return False
 
 def signHash(privateKey, message):
@@ -72,11 +53,11 @@ def signHash(privateKey, message):
 	signature = privateRsa.sign(hashed, 'sha256')
 	return binascii.hexlify(bytearray(signature))
 
-def hashStarLog(starLog):
-	starLog['state_hash'] = hashState(starLog['state'])
-	starLog['starLog_header'] = concatStarLogHeader(starLog['version'], starLog['previous_hash'], starLog['difficulty'], starLog['nonce'], starLog['time'], starLog['state_hash'])
-	starLog['hash'] = sha256(starLog['starLog_header'])
-	return starLog
+def hashStarLog(jsonStarLog):
+	jsonStarLog['state_hash'] = hashState(jsonStarLog['state'])
+	jsonStarLog['starLog_header'] = concatStarLogHeader(jsonStarLog)
+	jsonStarLog['hash'] = sha256(jsonStarLog['starLog_header'])
+	return jsonStarLog
 
 def hashState(state):
 	concat = state['fleet']
@@ -92,45 +73,45 @@ def hashState(state):
 # Take a integer representation of difficulty and return a target hash.
 def unpackBits(difficulty):
 	if not isinstance(difficulty, int):
-		raise TypeError("difficulty is not int")
-	hex = difficultyToHex(difficulty)
-	digitCount = int(hex[:2], 16)
+		raise TypeError('difficulty is not int')
+	sha = difficultyToHex(difficulty)
+	digitCount = int(sha[:2], 16)
 
 	if digitCount == 0:
 		digitCount = 3
 
 	digits = []
 	if digitCount == 29:
-		digits = [ hex[4:6], hex[6:8] ]
+		digits = [ sha[4:6], sha[6:8] ]
 	else:
-		digits = [ hex[2:4], hex[4:6], hex[6:8] ]
-	
+		digits = [ sha[2:4], sha[4:6], sha[6:8] ]
+
 	digitCount = min(digitCount, 28)
 	significantCount = len(digits)
 
 	leadingPadding = 28 - digitCount
 	trailingPadding = 28 - (leadingPadding + significantCount)
 
-	base256 = ""
+	base256 = ''
 
 	for i in range(0, leadingPadding + 4):
-		base256 += "00"
+		base256 += '00'
 	for i in range(0, significantCount):
 		base256 += digits[i]
 	for i in range(0, trailingPadding):
-		base256 += "00"
+		base256 += '00'
 
 	return base256
 
 # Takes the integer form of difficulty and verifies that the hash is less than it.
-def verifyDifficulty(difficulty, hash):
+def verifyDifficulty(difficulty, sha):
 	if not isinstance(difficulty, int):
-		raise TypeError("difficulty is not int")
-	if not verifyFieldIsHash(hash):
-		raise ValueError("hash is invalid")
+		raise TypeError('difficulty is not int')
+	if not verifyFieldIsSha256(sha):
+		raise ValueError('hash is invalid')
 
-	mask = unpackBits(difficulty).rstrip("0")
-	significant = hash[:len(mask)]
+	mask = unpackBits(difficulty).rstrip('0')
+	significant = sha[:len(mask)]
 
 	try:
 		return int(significant, 16) < int(mask, 16)
