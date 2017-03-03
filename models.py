@@ -18,6 +18,7 @@ class StarLog(db.Model):
 	nonce = db.Column(db.Integer)
 	time = db.Column(db.Integer)
 	state_hash = db.Column(db.String(64))
+	interval_id = db.Column(db.Integer)
 
 	def __repr__(self):
 		return '<StarLog %r>' % self.hash
@@ -46,6 +47,8 @@ class StarLog(db.Model):
 			raise TypeError('nonce is not int')
 		if not isinstance(jsonStarLog['time'], int):
 			raise TypeError('time is not int')
+		if util.getTime() < jsonStarLog['time']:
+			raise ValueError('time is greater than the current time')
 		if not isinstance(jsonStarLog['state_hash'], basestring):
 			raise TypeError('state_hash is not string')
 		if jsonStarLog['state'] is None:
@@ -56,20 +59,39 @@ class StarLog(db.Model):
 			raise ValueError('previous_hash is not a Sha256 Hash')
 		if not util.verifyFieldIsSha256(jsonStarLog['state_hash']):
 			raise ValueError('state_hash is not a Sha256 Hash')
-		if not util.isFirstStarLog(jsonStarLog['previous_hash']):
-			app.logger.info(jsonStarLog['previous_hash'])
-			app.logger.info(session.query(StarLog).filter_by(hash=jsonStarLog['previous_hash']).first())
-			app.logger.info(session.query(StarLog).filter_by(hash=jsonStarLog['previous_hash']).first() is None)
-			if session.query(StarLog).filter_by(hash=jsonStarLog['previous_hash']).first() is None:
-				raise ValueError('no previous entry with hash '+jsonStarLog['previous_hash'])
-			if not session.query(StarLog).filter_by(hash=jsonStarLog['hash']).first() is None:
-				raise ValueError('entry with hash %s already exists' % (jsonStarLog['hash']))
 		if not util.verifyLogHeader(jsonStarLog):
 			raise ValueError('log_header does not match provided values')
 		if not util.verifySha256(jsonStarLog['hash'], jsonStarLog['log_header']):
 			raise ValueError('Sha256 of log_header does not match hash')
 		if not jsonStarLog['state_hash'] == util.hashState(jsonStarLog['state']):
 			raise ValueError('state_hash does not match actual hash')
+		if not util.verifyDifficulty(jsonStarLog['difficulty'], jsonStarLog['hash']):
+			raise ValueError('hash does not meet requirements of difficulty')
+		if not util.isFirstStarLog(jsonStarLog['previous_hash']):
+			previous = session.query(StarLog).filter_by(hash=jsonStarLog['previous_hash']).first()
+			if previous is None:
+				raise ValueError('no previous entry with hash '+jsonStarLog['previous_hash'])
+			if jsonStarLog['time'] <= previous.time:
+				raise ValueError('time is less than previous time' if jsonStarLog['time'] < previous.time else 'time is equal to previous time')
+			if not session.query(StarLog).filter_by(hash=jsonStarLog['hash']).first() is None:
+				raise ValueError('entry with hash %s already exists' % (jsonStarLog['hash']))
+			self.height = previous.height + 1
+			duplicateHeight = session.query(StarLog).filter_by(height=self.height).order_by(StarLog.chain.desc()).first()
+			if duplicateHeight is None:
+				self.chain = previous.chain
+			else:
+				self.chain = previous.chain if previous.chain < duplicateHeight.chain else duplicateHeight.chain + 1
+			
+			# self.interval_id = previous.interval_id
+			
+			if util.isDifficultyChanging(self.height):
+				intervalStart = session.query(StarLog).filter_by(id=previous.interval_id).first()
+				if intervalStart is None:
+					raise ValueError('unable to find interval start with id %s' % (previous.interval_id))
+				duration = jsonStarLog['time'] - intervalStart.time
+				
+
+		
 
 		for jump in jsonStarLog['state']['jumps']:
 			if not util.verifyJump(jump):

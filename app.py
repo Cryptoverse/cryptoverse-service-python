@@ -91,10 +91,19 @@ if app.debug:
 			return '400', 400
 	
 	@app.route('/debug/unpack-hex-difficulty', methods=['POST'])
-	def routDebugUnpackHexDifficulty():
+	def routeDebugUnpackHexDifficulty():
 		try:
 			jsonData = request.get_json()
 			return util.unpackBits(util.difficultyFromHex(jsonData['hex_difficulty'])), 200
+		except:
+			traceback.print_exc()
+			return '400', 400
+	
+	@app.route('/debug/difficulty-change', methods=['POST'])
+	def routeDebugDifficultyChange():
+		try:
+			jsonData = request.get_json()
+			return str(util.calculateDifficulty(jsonData['difficulty'], jsonData['duration'])), 200
 		except:
 			traceback.print_exc()
 			return '400', 400

@@ -1,3 +1,5 @@
+import math
+import struct
 import os
 import hashlib
 import re
@@ -5,8 +7,12 @@ import binascii
 import traceback
 import time
 from M2Crypto import BIO, RSA
+from app import app
 
 difficultyFudge = int(os.getenv('DIFFICULTY_FUDGE', 0))
+difficultyInterval = int(os.getenv('DIFFICULTY_INTERVAL', 10080))
+difficultyDuration = int(os.getenv('DIFFICULTY_DURATION', 160))
+difficultyTotalDuration = difficultyDuration * difficultyInterval
 
 if not 0 <= difficultyFudge <= 8:
 	raise ValueError('DIFFICULTY_FUDGE must be a value from 0 to 8 (inclusive)')
@@ -25,6 +31,37 @@ def difficultyToHex(intDifficulty):
 # Takes a hex string of difficulty, missing the 0x, and returns the integer from of difficulty.
 def difficultyFromHex(hexDifficulty):
 	return int(hexDifficulty, 16)
+
+# Converts integer value of bits to floating point difficulty.
+def difficultyToFloat(intDifficulty):
+	shifted = (intDifficulty >> 24) & 255
+	difficulty = float(65535) / float(intDifficulty & 16777215)
+	while shifted < 29:
+		difficulty *= 256.0
+		shifted += 1
+	while shifted > 29:
+		difficulty /= 256.0
+		shifted -= 1
+	return difficulty
+
+# Checks if it's time to recalculate difficulty.
+def isDifficultyChanging(height):
+	return (height % difficultyInterval) == 0
+
+# Takes the packed integer difficulty and the duration of the last interval to calculate the new difficulty.
+# TODO: Return packed bit format, instead of the float...
+def calculateDifficulty(intDifficulty, duration):
+	completionRatio = float(difficultyTotalDuration) / float(duration)
+	if completionRatio == 1.0:
+		return 1.0
+	currDifficulty = difficultyToFloat(intDifficulty)
+	delta = (difficultyToFloat(486604799) / currDifficulty) * completionRatio
+	if delta < 0.25:
+		delta = 0.25
+	elif 4 < delta:
+		delta = 4.0
+	nextDifficulty = currDifficulty + delta
+	return nextDifficulty if 1.0 <= nextDifficulty else 1.0
 
 def verifyFieldIsSha256(sha):
 	return re.match(r'^[A-Fa-f0-9]{64}$', sha)
@@ -79,10 +116,10 @@ def hashState(state):
 	return sha256(concat)
 
 # Take a integer representation of difficulty and return a target hash.
-def unpackBits(difficulty):
-	if not isinstance(difficulty, int):
+def unpackBits(intDifficulty):
+	if not isinstance(intDifficulty, int):
 		raise TypeError('difficulty is not int')
-	sha = difficultyToHex(difficulty)
+	sha = difficultyToHex(intDifficulty)
 	digitCount = int(sha[:2], 16)
 
 	if digitCount == 0:
