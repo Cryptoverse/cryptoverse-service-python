@@ -61,7 +61,8 @@ def calculateDifficulty(intDifficulty, duration):
 	elif 4 < delta:
 		delta = 4.0
 	nextDifficulty = currDifficulty + delta
-	return nextDifficulty if 1.0 <= nextDifficulty else 1.0
+	nextDifficulty = nextDifficulty if 1.0 <= nextDifficulty else 1.0
+	return nextDifficulty * intDifficulty
 
 def verifyFieldIsSha256(sha):
 	return re.match(r'^[A-Fa-f0-9]{64}$', sha)
