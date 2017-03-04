@@ -148,7 +148,7 @@ if app.debug:
 	def routeDebugVerifyJump():
 		try:
 			jsonData = request.get_json()
-			return 'valid' if util.verifyJump(jsonData) else 'invalid'
+			return 'valid' if util.rsaVerifyJump(jsonData) else 'invalid'
 		except:
 			traceback.print_exc()
 			return '400', 400

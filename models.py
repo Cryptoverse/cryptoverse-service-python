@@ -67,7 +67,7 @@ class StarLog(db.Model):
 			raise ValueError('state_hash does not match actual hash')
 		if not util.verifyDifficulty(jsonStarLog['difficulty'], jsonStarLog['hash']):
 			raise ValueError('hash does not meet requirements of difficulty')
-		if not util.isFirstStarLog(jsonStarLog['previous_hash']):
+		if not util.isGenesisStarLogParent(jsonStarLog['previous_hash']):
 			previous = session.query(StarLog).filter_by(hash=jsonStarLog['previous_hash']).first()
 			if previous is None:
 				raise ValueError('no previous entry with hash '+jsonStarLog['previous_hash'])
@@ -94,7 +94,7 @@ class StarLog(db.Model):
 		
 
 		for jump in jsonStarLog['state']['jumps']:
-			if not util.verifyJump(jump):
+			if not util.rsaVerifyJump(jump):
 				raise ValueError('state.jumps are invalid')
 
 		self.hash = jsonStarLog['hash']
