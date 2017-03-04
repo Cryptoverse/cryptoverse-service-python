@@ -8,7 +8,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization, hashes
 import cryptography
-from app import app
+from app import app # pylint: disable=locally-disabled, unused-import
 
 difficultyFudge = int(os.getenv('DIFFICULTY_FUDGE', 0))
 difficultyInterval = int(os.getenv('DIFFICULTY_INTERVAL', 10080))
@@ -26,17 +26,32 @@ elif 0 < difficultyFudge:
 def isFirstStarLog(previous_hash):
 	return previous_hash == '0000000000000000000000000000000000000000000000000000000000000000'
 
-# Returns the Sha256 hash of the provided string, or the hash of nothing if None is passed.
 def sha256(text):
+	''' Sha256 hash of text.
+	Args:
+		text (str): Text to hash.
+	Returns:
+		str: The Sha256 hash of the provided string, or the hash of nothing if None is passed.
+	'''
 	return hashlib.sha256('' if text is None else text).hexdigest()
 
-# Takes the integer format of difficulty and returns a string with its hex representation, sans the leading 0x.
-def difficultyToHex(intDifficulty):
-	return hex(intDifficulty)[2:]
+def difficultyToHex(difficulty):
+	''' Converts a packed int representation of difficulty to its packed hex format.
+	Args:
+		difficulty (int): The packed int format of difficulty.
+	Returns:
+		str: The packed hex format of difficulty, stripped of its leading 0x.
+	'''
+	return hex(difficulty)[2:]
 
-# Takes a hex string of difficulty, missing the 0x, and returns the integer from of difficulty.
-def difficultyFromHex(hexDifficulty):
-	return int(hexDifficulty, 16)
+def difficultyFromHex(difficulty):
+	''' Takes a hex string of difficulty, missing the 0x, and returns the integer from of difficulty.
+	Args:
+		difficulty (str): The packed hex format of difficulty.
+	Returns:
+		int: The packed int format of difficulty.
+	'''
+	return int(difficulty, 16)
 
 # Takes a stripped hex target, without the leading 0x, and returns the stripped hex bit difficulty.
 def difficultyFromTarget(hexTarget):
@@ -78,6 +93,12 @@ def calculateDifficulty(intDifficulty, duration):
 	return difficultyFromTarget(hex(result)[2:])
 
 def verifyFieldIsSha256(sha):
+	''' Verifies a string is a possible Sha256 hash.
+	Args:
+		sha (str): Hash to test.
+	Returns:
+		bool: True for success, False otherwise.
+	'''
 	return re.match(r'^[A-Fa-f0-9]{64}$', sha)
 
 def concatStarLogHeader(jsonStarLog):
