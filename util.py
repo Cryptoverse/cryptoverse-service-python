@@ -7,7 +7,8 @@ import time
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization, hashes
-import cryptography
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
+from cryptography.exceptions import InvalidSignature
 from app import app # pylint: disable=locally-disabled, unused-import
 
 difficultyFudge = int(os.getenv('DIFFICULTY_FUDGE', 0))
