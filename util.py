@@ -4,8 +4,11 @@ import re
 import binascii
 import traceback
 import time
-from M2Crypto import BIO, RSA
-from app import app # pylint: disable=locally-disabled, unused-import
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization, hashes
+import cryptography
+from app import app
 
 difficultyFudge = int(os.getenv('DIFFICULTY_FUDGE', 0))
 difficultyInterval = int(os.getenv('DIFFICULTY_INTERVAL', 10080))
@@ -23,32 +26,17 @@ elif 0 < difficultyFudge:
 def isFirstStarLog(previous_hash):
 	return previous_hash == '0000000000000000000000000000000000000000000000000000000000000000'
 
+# Returns the Sha256 hash of the provided string, or the hash of nothing if None is passed.
 def sha256(text):
-	''' Sha256 hash of text.
-	Args:
-		text (str): Text to hash.
-	Returns:
-		str: The Sha256 hash of the provided string, or the hash of nothing if None is passed.
-	'''
 	return hashlib.sha256('' if text is None else text).hexdigest()
 
-def difficultyToHex(difficulty):
-	''' Converts a packed int representation of difficulty to its packed hex format.
-	Args:
-		difficulty (int): The packed int format of difficulty.
-	Returns:
-		str: The packed hex format of difficulty, stripped of its leading 0x.
-	'''
-	return hex(difficulty)[2:]
+# Takes the integer format of difficulty and returns a string with its hex representation, sans the leading 0x.
+def difficultyToHex(intDifficulty):
+	return hex(intDifficulty)[2:]
 
-def difficultyFromHex(difficulty):
-	''' Takes a hex string of difficulty, missing the 0x, and returns the integer from of difficulty.
-	Args:
-		difficulty (str): The packed hex format of difficulty.
-	Returns:
-		int: The packed int format of difficulty.
-	'''
-	return int(difficulty, 16)
+# Takes a hex string of difficulty, missing the 0x, and returns the integer from of difficulty.
+def difficultyFromHex(hexDifficulty):
+	return int(hexDifficulty, 16)
 
 # Takes a stripped hex target, without the leading 0x, and returns the stripped hex bit difficulty.
 def difficultyFromTarget(hexTarget):
@@ -90,12 +78,6 @@ def calculateDifficulty(intDifficulty, duration):
 	return difficultyFromTarget(hex(result)[2:])
 
 def verifyFieldIsSha256(sha):
-	''' Verifies a string is a possible Sha256 hash.
-	Args:
-		sha (str): Hash to test.
-	Returns:
-		bool: True for success, False otherwise.
-	'''
 	return re.match(r'^[A-Fa-f0-9]{64}$', sha)
 
 def concatStarLogHeader(jsonStarLog):
@@ -119,15 +101,21 @@ def formatPublicKey(strippedPublicKey):
 
 def verifySignature(publicKey, signature, message):
 	try:
-		publicRsa = RSA.load_pub_key_bio(BIO.MemoryBuffer(publicKey))
-		return publicRsa.verify(bytes(message), binascii.unhexlify(bytearray(signature)), 'sha256') == 1
-	except:
+		publicRsa = load_pem_private_key(bytes(publicKey), password=None, backend=default_backend())
+		publicRsa.verify(
+			signature,
+			message,
+			"",
+			hashes.SHA256()
+		)
+		return True
+	except InvalidSignature as e:
 		return False
 
 def signHash(privateKey, message):
-	privateRsa = RSA.load_key_bio(BIO.MemoryBuffer(privateKey))
+	privateRsa = serialization.load_pem_private_key(privateKey,password=None,backend=default_backend())
 	hashed = sha256(message)
-	signature = privateRsa.sign(hashed, 'sha256')
+	signature = privateRsa.sign(hashed, None, hashes.SHA256())
 	return binascii.hexlify(bytearray(signature))
 
 def hashStarLog(jsonStarLog):
@@ -191,7 +179,6 @@ def verifyDifficulty(difficulty, sha):
 
 	mask = unpackBits(difficulty).rstrip('0')
 	significant = sha[:len(mask)]
-
 	try:
 		return int(significant, 16) < int(mask, 16)
 	except:
