@@ -134,7 +134,7 @@ def rsaVerify(publicKey, signature, message):
 			hashes.SHA256()
 		)
 		return True
-	except InvalidSignature as e:
+	except InvalidSignature:
 		return False
 
 def rsaSign(privateKey, message):
