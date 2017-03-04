@@ -4,13 +4,13 @@ import os
 import json
 from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
-import util
-import models
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DB_HOST']
 db = SQLAlchemy(app)
-difficultyFudge = os.getenv('DIFFICULTY_FUDGE', 0)
+
+import util
+import models
 
 @app.before_first_request
 def setupLogging():
@@ -31,7 +31,7 @@ def routeStarLogs():
 		return 'ok'
 	elif request.method == 'POST':
 		try:
-			posted = models.StarLog(request.data)
+			posted = models.StarLog(request.data, db.session)
 			db.session.add(posted)
 			db.session.commit()
 		except:
@@ -45,8 +45,8 @@ if app.debug:
 
 	@app.route('/debug/hash-star-log', methods=['POST'])
 	def routeDebugHashStarLog():
-		jsonData = request.get_json()
 		try:
+			jsonData = request.get_json()
 			return json.dumps(util.hashStarLog(jsonData)), 200
 		except:
 			traceback.print_exc()
@@ -54,17 +54,18 @@ if app.debug:
 
 	@app.route('/debug/probe-star-log', methods=['POST'])
 	def routeDebugProbeStarLog():
-		jsonData = request.get_json()
 		try:
-			return probe.probeStarLog(jsonData), 200
+			jsonData = request.get_json()
+			result = probe.probeStarLog(jsonData)
+			return json.dumps(result[1]) , 200
 		except:
 			traceback.print_exc()
 			return '400', 400
 
 	@app.route('/debug/sign-jump', methods=['POST'])
 	def routeDebugSignJump():
-		jsonData = request.get_json()
 		try:
+			jsonData = request.get_json()
 			signature = util.signHash(str(jsonData['private_key']), util.concatJump(jsonData))
 			return json.dumps({
 				'private_key': jsonData['private_key'],
@@ -82,12 +83,32 @@ if app.debug:
 
 	@app.route('/debug/verify-jump', methods=['POST'])
 	def routeDebugVerifyJump():
-		jsonData = request.get_json()
 		try:
+			jsonData = request.get_json()
 			return 'valid' if util.verifyJump(jsonData) else 'invalid'
+		except:
+			traceback.print_exc()
+			return '400', 400
+	
+	@app.route('/debug/unpack-hex-difficulty', methods=['POST'])
+	def routeDebugUnpackHexDifficulty():
+		try:
+			jsonData = request.get_json()
+			return util.unpackBits(util.difficultyFromHex(jsonData['hex_difficulty'])), 200
+		except:
+			traceback.print_exc()
+			return '400', 400
+	
+	@app.route('/debug/difficulty-change', methods=['POST'])
+	def routeDebugDifficultyChange():
+		try:
+			jsonData = request.get_json()
+			return str(util.calculateDifficulty(jsonData['difficulty'], jsonData['duration'])), 200
 		except:
 			traceback.print_exc()
 			return '400', 400
 
 if __name__ == '__main__':
+	if 0 < util.difficultyFudge:
+		app.logger.info('All hash difficulty will be calculated with DIFFICULTY_FUDGE %s' % (util.difficultyFudge))
 	app.run()
