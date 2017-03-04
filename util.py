@@ -75,6 +75,12 @@ def calculateDifficulty(intDifficulty, duration):
 	return difficultyFromTarget(hex(result)[2:])
 
 def verifyFieldIsSha256(sha):
+	''' Verifies a string is a possible Sha256 hash.
+	Args:
+		sha (str): Hash to test.
+	Returns:
+		bool: True for success, False otherwise.
+	'''
 	return re.match(r'^[A-Fa-f0-9]{64}$', sha)
 
 def concatStarLogHeader(jsonStarLog):
