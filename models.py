@@ -1,5 +1,5 @@
 import json
-from app import app, db
+from app import app, db # pylint: disable=locally-disabled, unused-import
 import util
 
 class StarLog(db.Model):

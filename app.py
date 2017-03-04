@@ -133,6 +133,15 @@ if app.debug:
 			traceback.print_exc()
 			return '400', 400
 	
+	@app.route('/debug/unpack-difficulty', methods=['POST'])
+	def routeDebugUnpackDifficulty():
+		try:
+			jsonData = request.get_json()
+			return util.unpackBits(jsonData['difficulty']), 200
+		except:
+			traceback.print_exc()
+			return '400', 400
+
 	@app.route('/debug/unpack-hex-difficulty', methods=['POST'])
 	def routeDebugUnpackHexDifficulty():
 		try:
