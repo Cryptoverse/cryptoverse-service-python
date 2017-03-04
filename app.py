@@ -108,13 +108,32 @@ if app.debug:
 			traceback.print_exc()
 			return '400', 400
 
+	@app.route('/debug/sign', methods=['POST'])
+	def routeDebugSign():
+		try:
+			jsonData = request.get_json()
+			return util.rsaSign(jsonData['private_key'], jsonData['message']), 200
+		except:
+			traceback.print_exc()
+			return '400', 400
+
+	@app.route('/debug/verify-signature', methods=['POST'])
+	def routeDebugVerifySignature():
+		try:
+			jsonData = request.get_json()
+			return 'valid' if util.rsaVerify(jsonData['public_key'], jsonData['signature'], jsonData['message']) else 'invalid'
+		except:
+			traceback.print_exc()
+			return '400', 400
+
 	@app.route('/debug/sign-jump', methods=['POST'])
 	def routeDebugSignJump():
 		try:
 			jsonData = request.get_json()
-			signature = util.signHash(str(jsonData['private_key']), util.concatJump(jsonData))
+			message = util.concatJump(jsonData)
+			app.logger.info(message)
+			signature = util.rsaSign(jsonData['private_key'], message)
 			return json.dumps({
-				'private_key': jsonData['private_key'],
 				'public_key': jsonData['public_key'],
 				'fleet': jsonData['fleet'],
 				'key': jsonData['key'],

@@ -4,11 +4,11 @@ import re
 import binascii
 import traceback
 import time
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
 from app import app # pylint: disable=locally-disabled, unused-import
 
 difficultyFudge = int(os.getenv('DIFFICULTY_FUDGE', 0))
@@ -115,29 +115,39 @@ def concatJump(jump):
 	return '%s%s%s%s%s'%(jump['fleet'], jump['key'], jump['origin'], jump['destination'], jump['count'])
 
 def verifyJump(jump):
-	hashed_header = sha256(concatJump(jump))
-	return verifySignature(str(formatPublicKey(jump['fleet'])), str(jump['signature']), str(hashed_header))
+	return rsaVerify(formatPublicKey(jump['fleet']), jump['signature'], concatJump(jump))
 
 def formatPublicKey(strippedPublicKey):
 	return '-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----'%(strippedPublicKey)
 
-def verifySignature(publicKey, signature, message):
+def rsaVerify(publicKey, signature, message):
 	try:
-		publicRsa = load_pem_private_key(bytes(publicKey), password=None, backend=default_backend())
+		publicRsa = load_pem_public_key(bytes(publicKey), backend=default_backend())
+		hashed = sha256(message)
 		publicRsa.verify(
-			signature,
-			message,
-			"",
+			binascii.unhexlify(signature),
+			hashed,
+			padding.PSS(
+				mgf=padding.MGF1(hashes.SHA256()),
+				salt_length=padding.PSS.MAX_LENGTH
+			),
 			hashes.SHA256()
 		)
 		return True
 	except InvalidSignature as e:
 		return False
 
-def signHash(privateKey, message):
-	privateRsa = serialization.load_pem_private_key(privateKey,password=None,backend=default_backend())
+def rsaSign(privateKey, message):
+	privateRsa = load_pem_private_key(bytes(privateKey), password=None,backend=default_backend())
 	hashed = sha256(message)
-	signature = privateRsa.sign(hashed, None, hashes.SHA256())
+	signature = privateRsa.sign(
+		hashed, 
+		padding.PSS(
+			mgf=padding.MGF1(hashes.SHA256()),
+			salt_length=padding.PSS.MAX_LENGTH
+		),
+		hashes.SHA256()
+	)
 	return binascii.hexlify(bytearray(signature))
 
 def hashStarLog(jsonStarLog):
