@@ -13,7 +13,10 @@ if 'CV_DEBUG' in os.environ:
 db = SQLAlchemy(app)
 
 import util
-import models
+from models import StarLog
+
+starLogsMaxLimit = int(os.getenv('STARLOG_MAX_LIMIT', 10))
+# TODO: Should there be a max offset?
 
 @app.before_first_request
 def setupLogging():
@@ -30,11 +33,51 @@ def routeIndex():
 @app.route('/star-logs', methods=['GET', 'POST'])
 def routeStarLogs():
 	if request.method == 'GET':
-		app.logger.info(models.StarLog.query.all()[0].getJson())
-		return 'ok'
+		try:
+			previousHash = request.args.get('previous_hash')
+			beforeTime = request.args.get('before_time')
+			sinceTime = request.args.get('since_time')
+			limit = request.args.get('limit')
+			offset = request.args.get('offset')
+			query = StarLog.query
+			if previousHash is not None:
+				if not util.verifyFieldIsSha256(previousHash):
+					raise ValueError('previous_hash is not a Sha256 hash')
+				query = query.filter_by(previous_hash=previousHash)
+			if beforeTime is not None:
+				if not isinstance(beforeTime, int):
+					raise TypeError('before_time is not an int')
+				query = query.filter(StarLog.time < beforeTime)
+			if sinceTime is not None:
+				if not isinstance(sinceTime, int):
+					raise TypeError('since_time is not an int')
+				query = query.filter(sinceTime < StarLog.time)
+			if sinceTime is not None and beforeTime is not None:
+				if beforeTime < sinceTime:
+					raise ValueError('since_time is greater than before_time')
+			if limit is not None:
+				if not isinstance(limit, int):
+					raise TypeError('limit is not an int')
+				if starLogsMaxLimit < limit:
+					raise ValueError('limit greater than maximum allowed')
+				query = query.limit(limit)
+			else:
+				query = query.limit(starLogsMaxLimit)
+			if offset is not None:
+				if not isinstance(offset, int):
+					raise TypeError('offset is not an int')
+				query = query.offset(offset)
+			matches = query.all()
+			result = []
+			for match in matches:
+				result.append(match.getJson())
+			return json.dumps(result), 200
+		except:
+			traceback.print_exc()
+			return '400', 400
 	elif request.method == 'POST':
 		try:
-			posted = models.StarLog(request.data, db.session)
+			posted = StarLog(request.data, db.session)
 			db.session.add(posted)
 			db.session.commit()
 		except:
@@ -93,6 +136,15 @@ if app.debug:
 			traceback.print_exc()
 			return '400', 400
 	
+	@app.route('/debug/unpack-difficulty', methods=['POST'])
+	def routeDebugUnpackDifficulty():
+		try:
+			jsonData = request.get_json()
+			return util.unpackBits(jsonData['difficulty']), 200
+		except:
+			traceback.print_exc()
+			return '400', 400
+
 	@app.route('/debug/unpack-hex-difficulty', methods=['POST'])
 	def routeDebugUnpackHexDifficulty():
 		try:
