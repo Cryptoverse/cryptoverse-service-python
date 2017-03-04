@@ -2,7 +2,7 @@ import hashlib
 import re
 import binascii
 import traceback
-from M2Crypto import BIO, RSA
+#from M2Crypto import BIO, RSA
 
 def isFirstStarLog(previous_hash):
 	return previous_hash == '0000000000000000000000000000000000000000000000000000000000000000'
@@ -42,9 +42,16 @@ def formatPublicKey(strippedPublicKey):
 
 def verifySignature(publicKey, signature, message):
 	try:
-		publicRsa = RSA.load_pub_key_bio(BIO.MemoryBuffer(publicKey))
-		return publicRsa.verify(bytes(message), binascii.unhexlify(bytearray(signature)), 'sha256') == 1
-	except:
+		publicRsa = load_pem_private_key(bytes(publicKey), password=None, backend=default_backend())
+		publicRsa.verify(
+			signature,
+			message,
+			"",
+			hashes.SHA256()
+		)
+		return True
+	except InvalidSignature as e:
+		print(e)
 		return False
 
 def signHash(privateKey, message):
@@ -116,5 +123,5 @@ def verifyDifficulty(difficulty, sha):
 	try:
 		return int(significant, 16) < int(mask, 16)
 	except:
-		traceback.print_exc()
+		#traceback.print_exc()
 		return False
