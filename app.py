@@ -7,9 +7,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DB_HOST']
-if 'CV_DEBUG' in os.environ:
-	if os.environ['CV_DEBUG'] > 0:
-		app.debug = True
+app.debug = 0 < os.getenv('CV_DEBUG', 0)
 db = SQLAlchemy(app)
 
 import util
