@@ -180,6 +180,15 @@ if app.debug:
 			traceback.print_exc()
 			return '400', 400
 
+	@app.route('/debug/target-to-difficulty', methods=['POST'])
+	def routeDebugTargetToDifficulty():
+		try:
+			jsonData = request.get_json()
+			return str(util.difficultyFromTarget(jsonData['target'])), 200
+		except:
+			traceback.print_exc()
+			return '400', 400
+
 if __name__ == '__main__':
 	if 0 < util.difficultyFudge:
 		app.logger.info('All hash difficulty will be calculated with DIFFICULTY_FUDGE %s' % (util.difficultyFudge))

@@ -77,6 +77,7 @@ def difficultyFromTarget(target):
 	Returns:
 		str: Packed hex difficulty of the target, stripped of its leading 0x.
 	'''
+	# TODO: Cleanup shitwise operators that use string transformations, they're ugly... though they do work...
 	stripped = target.lstrip('0')
 
 	# If we stripped too many zeros, add one back.
@@ -90,8 +91,17 @@ def difficultyFromTarget(target):
 	if 0x7fffff < int(stripped, 16):
 		stripped = '00' + stripped[0:4]
 		count += 1
+
+	result = hex(count)[2:] + stripped
+
+	# Negative number switcharoo
+	if 0x00800000 & int(result, 16):
+		result = hex(count + 1)[2:] + '00' + stripped[:4]
+	# # Lazy max number check...
+	# if 0x1d00ffff < int(result, 16):
+	# 	result = '1d00ffff'
+	return result
 	
-	return hex(count)[2:] + stripped
 
 def isDifficultyChanging(height):
 	'''Checks if it's time to recalculate difficulty.
