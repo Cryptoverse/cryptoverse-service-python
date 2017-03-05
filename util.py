@@ -112,7 +112,7 @@ def calculateDifficulty(difficulty, duration):
 		duration (int): Seconds elapsed since the last time difficulty was calculated.
 	
 	Returns:
-		str: Packed hex format of the next difficulty, stripped of its leading 0x.
+		int: Packed int format of the next difficulty.
 	'''
 	if duration < difficultyTotalDuration / 4:
 		duration = difficultyTotalDuration / 4
@@ -127,7 +127,7 @@ def calculateDifficulty(difficulty, duration):
 	if limit < result:
 		result = limit
 	
-	return difficultyFromTarget(hex(result)[2:])
+	return difficultyFromHex(difficultyFromTarget(hex(result)[2:]))
 
 def verifyFieldIsSha256(sha):
 	'''Verifies a string is a possible Sha256 hash.
@@ -297,7 +297,7 @@ def unpackBits(difficulty):
 	Returns:
 		str: Hex value of a target hash equal to this difficulty, stripped of its leading 0x.
 	'''
-	if not isinstance(difficulty, int):
+	if not isinstance(difficulty, (int, long)):
 		raise TypeError('difficulty is not int')
 	sha = difficultyToHex(difficulty)
 	digitCount = int(sha[:2], 16)
@@ -340,8 +340,8 @@ def verifyDifficulty(difficulty, sha):
 	Returns:
 		bool: True if the provided Sha256 hash is less than target specified by the difficulty.
 	'''
-	if not isinstance(difficulty, int):
-		raise TypeError('difficulty is not int')
+	if not isinstance(difficulty, (int, long)):
+		raise TypeError('difficulty is not an int')
 	if not verifyFieldIsSha256(sha):
 		raise ValueError('hash is invalid')
 

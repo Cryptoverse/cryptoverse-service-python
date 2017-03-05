@@ -157,7 +157,7 @@ if app.debug:
 	def routeDebugUnpackDifficulty():
 		try:
 			jsonData = request.get_json()
-			return util.unpackBits(jsonData['difficulty']), 200
+			return util.unpackBits(int(jsonData['difficulty'])), 200
 		except:
 			traceback.print_exc()
 			return '400', 400

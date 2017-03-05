@@ -97,7 +97,7 @@ else:
 		while not found and tries < sys.maxint:
 			starLog['nonce'] += 1
 			starLog = util.hashStarLog(starLog)
-			found = util.verifyDifficulty(starLog['difficulty'], starLog['hash'])
+			found = util.verifyDifficulty(int(starLog['difficulty']), starLog['hash'])
 			now = datetime.now()
 			if 10 < (now - lastCheckin).total_seconds():
 				lastCheckin = now
@@ -107,9 +107,9 @@ else:
 				app.logger.info('%.1f minutes elapsed, %s hashes at %s per second' % (elapsedMinutes, '{:,}'.format(tries), '{:,.2f}'.format(hashesPerSecond)))
 			tries += 1
 
-		if found:
-			app.logger.info('Found! %s tries to found nonce %s producing %s' % (tries, starLog['nonce'], starLog['hash']))
-		else:
-			app.logger.info('Not found after %s tries!' % (tries))
+		# if found:
+		# 	app.logger.info('Found! %s tries to found nonce %s producing %s' % (tries, starLog['nonce'], starLog['hash']))
+		# else:
+		# 	app.logger.info('Not found after %s tries!' % (tries))
 
 		return found, starLog

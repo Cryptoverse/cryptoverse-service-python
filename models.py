@@ -67,28 +67,49 @@ class StarLog(db.Model):
 			raise ValueError('state_hash does not match actual hash')
 		if not util.verifyDifficulty(jsonStarLog['difficulty'], jsonStarLog['hash']):
 			raise ValueError('hash does not meet requirements of difficulty')
-		if not util.isGenesisStarLogParent(jsonStarLog['previous_hash']):
+		if util.isGenesisStarLogParent(jsonStarLog['previous_hash']):
+			self.height = 0
+			duplicateHeight = session.query(StarLog).filter_by(height=self.height).order_by(StarLog.chain.desc()).first()
+			if duplicateHeight is None:
+				self.chain = 0
+			else:
+				highestChain = session.query(StarLog).order_by(StarLog.chain.desc()).first()
+				self.chain = highestChain.chain + 1
+			self.difficulty = jsonStarLog['difficulty']
+		else:
 			previous = session.query(StarLog).filter_by(hash=jsonStarLog['previous_hash']).first()
 			if previous is None:
 				raise ValueError('no previous entry with hash '+jsonStarLog['previous_hash'])
-			if jsonStarLog['time'] <= previous.time:
-				raise ValueError('time is less than previous time' if jsonStarLog['time'] < previous.time else 'time is equal to previous time')
+			if jsonStarLog['time'] < previous.time:
+				raise ValueError('time is less than previous time')
 			if not session.query(StarLog).filter_by(hash=jsonStarLog['hash']).first() is None:
 				raise ValueError('entry with hash %s already exists' % (jsonStarLog['hash']))
 			self.height = previous.height + 1
 			duplicateHeight = session.query(StarLog).filter_by(height=self.height).order_by(StarLog.chain.desc()).first()
 			if duplicateHeight is None:
 				self.chain = previous.chain
+			elif previous.chain == duplicateHeight.chain:
+				highestChain = session.query(StarLog).order_by(StarLog.chain.desc()).first()
+				self.chain = highestChain.chain + 1
 			else:
-				self.chain = previous.chain if previous.chain < duplicateHeight.chain else duplicateHeight.chain + 1
-			
-			# self.interval_id = previous.interval_id
+				self.chain = previous.chain
+			# If the previous StarLog has no interval_id, that means we recalculated difficulty on it.
+			self.interval_id = previous.id if previous.interval_id is None else previous.interval_id
 			
 			if util.isDifficultyChanging(self.height):
 				intervalStart = session.query(StarLog).filter_by(id=previous.interval_id).first()
 				if intervalStart is None:
 					raise ValueError('unable to find interval start with id %s' % (previous.interval_id))
-				duration = jsonStarLog['time'] - intervalStart.time
+				duration = previous.time - intervalStart.time
+				difficulty = util.calculateDifficulty(previous.difficulty, duration)
+				if jsonStarLog['difficulty'] != difficulty:
+					raise ValueError('difficulty does not match recalculated difficulty')
+				# This lets the next in the chain know to use our id for the interval_id.
+				self.interval_id = None
+			elif jsonStarLog['difficulty'] != previous.difficulty:
+				raise ValueError('difficulty does not match previous difficulty')
+			else:
+				self.difficulty = previous.difficulty
 				
 
 		
