@@ -4,9 +4,21 @@ import os
 import json
 from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS, cross_origin
+from celery.result import AsyncResult
+from celery import Celery
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DB_HOST']
+CORS(app)
+app.config.update(
+	SQLALCHEMY_DATABASE_URI = os.environ['DB_HOST'],
+	CELERY_BROKER_URL=os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379'),
+    CELERY_RESULT_BACKEND=os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379')
+)
+app.config.update(
+    CELERY_BROKER_URL='redis://localhost:6379',
+    CELERY_RESULT_BACKEND='redis://localhost:6379'
+)
 app.debug = 0 < os.getenv('CV_DEBUG', 0)
 db = SQLAlchemy(app)
 
@@ -15,6 +27,21 @@ from models import StarLog
 
 starLogsMaxLimit = int(os.getenv('STARLOG_MAX_LIMIT', 10))
 # TODO: Should there be a max offset?
+
+def make_celery(app):
+    celery = Celery(app.import_name, backend=app.config['CELERY_RESULT_BACKEND'],
+                    broker=app.config['CELERY_BROKER_URL'])
+    celery.conf.update(app.config)
+    TaskBase = celery.Task
+    class ContextTask(TaskBase):
+        abstract = True
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return TaskBase.__call__(self, *args, **kwargs)
+    celery.Task = ContextTask
+    return celery
+
+celery = make_celery(app)
 
 @app.before_first_request
 def setupLogging():
@@ -27,6 +54,22 @@ def setupLogging():
 def routeIndex():
 	if request.method == 'GET':
 		return '200'
+
+@app.route("/jobprogress")
+@cross_origin()
+def poll_state():
+	if 'job' in request.args:
+		job_id = request.args['job']
+	else:
+		return 'No job id given.'
+
+	job = celery.AsyncResult(job_id)
+	data = job.result or job.state
+	# meta = json.dumps(job.info)
+	if data is None:
+		return "{}"
+	return str(json.dumps(data))
+
 
 @app.route('/star-logs', methods=['GET', 'POST'])
 def routeStarLogs():
@@ -86,6 +129,14 @@ def routeStarLogs():
 # TODO: Move this somewhere?
 if app.debug:
 	import probe
+	@app.route("/debug/blockchain-info", methods=['GET'])
+	def blockchainInfo():
+		info = {}
+		info['fudge'] = util.difficultyFudge
+		info['difficulty_duration'] = util.difficultyDuration
+		info['difficulty_interval'] = util.difficultyInterval
+		return json.dumps(info)
+
 
 	@app.route('/debug/hash-star-log', methods=['POST'])
 	def routeDebugHashStarLog():
@@ -96,8 +147,8 @@ if app.debug:
 			traceback.print_exc()
 			return '400', 400
 
-	@app.route('/debug/probe-star-log', methods=['POST'])
-	def routeDebugProbeStarLog():
+	@app.route('/debug/probe-star-log-depreciated', methods=['POST'])
+	def routeDebugProbeStarLogOld():
 		try:
 			jsonData = request.get_json()
 			result = probe.probeStarLog(jsonData)
@@ -105,6 +156,16 @@ if app.debug:
 		except:
 			traceback.print_exc()
 			return '400', 400
+
+	@app.route("/debug/probe-star-log", methods=['POST'])
+	def routeDebugProbeStarLog():
+		import CeleryTasks
+		jsonData = request.get_json()
+		tid = CeleryTasks.probeStarLog.delay(jsonData)
+		returnObject = {}
+		returnObject['task_id'] = str(tid)
+		return json.dumps(returnObject)
+
 
 	@app.route('/debug/sign', methods=['POST'])
 	def routeDebugSign():
@@ -189,6 +250,9 @@ if app.debug:
 			traceback.print_exc()
 			return '400', 400
 
+
+
+import CeleryTasks
 if __name__ == '__main__':
 	if 0 < util.difficultyFudge:
 		app.logger.info('All hash difficulty will be calculated with DIFFICULTY_FUDGE %s' % (util.difficultyFudge))
