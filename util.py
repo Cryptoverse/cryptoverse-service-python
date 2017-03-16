@@ -9,7 +9,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
-from app import app # pylint: disable=locally-disabled, unused-import
 
 difficultyFudge = int(os.getenv('DIFFICULTY_FUDGE', 0))
 difficultyInterval = int(os.getenv('DIFFICULTY_INTERVAL', 10080))

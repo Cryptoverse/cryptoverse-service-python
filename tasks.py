@@ -1,10 +1,15 @@
-from datetime import datetime
+import os
 import sys
-from celery import current_task
+from datetime import datetime
+from celery import Celery, current_task
 import util
-from app import celery
 
-@celery.task()
+backendUrl = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379')
+brokerUrl = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379'),
+
+tasker = Celery(__name__, backend=backendUrl, broker=brokerUrl)
+
+@tasker.task()
 def probeStarLog(starLog):
     tid = probeStarLog.request.id
     starLog['time'] = util.getTime()

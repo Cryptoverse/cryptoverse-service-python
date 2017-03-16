@@ -1,24 +1,27 @@
 import json
-from app import app, db # pylint: disable=locally-disabled, unused-import
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.ext.declarative import declarative_base
 import util
 
-class StarLog(db.Model):
+Base = declarative_base()
+
+class StarLog(Base):
 	__tablename__ = 'star_logs'
 	extend_existing=True
 
-	id = db.Column(db.Integer, primary_key=True)
-	hash = db.Column(db.String(64))
-	height = db.Column(db.Integer)
-	chain = db.Column(db.Integer)
-	size = db.Column(db.Integer)
-	log_header = db.Column(db.String(255))
-	version = db.Column(db.Integer)
-	previous_hash = db.Column(db.String(64))
-	difficulty = db.Column(db.Integer)
-	nonce = db.Column(db.Integer)
-	time = db.Column(db.Integer)
-	state_hash = db.Column(db.String(64))
-	interval_id = db.Column(db.Integer)
+	id = Column(Integer, primary_key=True)
+	hash = Column(String(64))
+	height = Column(Integer)
+	chain = Column(Integer)
+	size = Column(Integer)
+	log_header = Column(String(255))
+	version = Column(Integer)
+	previous_hash = Column(String(64))
+	difficulty = Column(Integer)
+	nonce = Column(Integer)
+	time = Column(Integer)
+	state_hash = Column(String(64))
+	interval_id = Column(Integer)
 
 	def __repr__(self):
 		return '<StarLog %r>' % self.hash
@@ -140,124 +143,3 @@ class StarLog(db.Model):
 			'time': self.time,
 			'state_hash': self.state_hash
 		}
-
-'''
-class StarSystem(db.Model):
-	__tablename__ = 'star_systems'
-	extend_existing=True
-
-	id = db.Column(db.Integer(), primary_key=True)
-	star_log_id = db.Column(db.Integer, db.ForeignKey('star_logs.id'))
-	star_log = db.relationship('StarLog', backref=db.backref('star_systems', lazy='dynamic'))
-	fleet = db.Column(db.String(130))
-
-	def __repr__(self):
-		return '<StarSystem %r>' % self.id
-
-
-class Deployment(db.Model):
-	__tablename__ = 'deployments'
-	extend_existing=True
-
-	id = db.Column(db.Integer, primary_key=True)
-	star_system_id = db.Column(db.Integer, db.ForeignKey('star_systems.id'))
-	star_system = db.relationship('StarSystem', backref=db.backref('deployments', lazy='dynamic'))
-	fleet = db.Column(db.String(130))
-	count = db.Column(db.Integer)
-
-	def __repr__(self):
-		return '<Deployment %r>' % self.id
-
-class StarLogJump(db.Model):
-	__tablename__ = 'star_log_jumps'
-	extend_existing=True
-
-	id = db.Column(db.Integer, primary_key=True)
-	jump_id = db.Column(db.Integer, db.ForeignKey('jumps.id'))
-	jump = db.relationship('Jump', backref=db.backref('star_log_jumps', lazy='dynamic'))
-	star_log_id = db.Column(db.Integer, db.ForeignKey('star_logs.id'))
-	star_log = db.relationship('StarLog', backref=db.backref('star_log_jumps', lazy='dynamic'))
-	index = db.Column(db.Integer)
-	def __repr__(self):
-		return '<StarLogJump %r>' % self.hash
-
-	def __init__(
-		self,
-		jump_id,
-		star_log_id,
-		index
-	):
-		if not isinstance(jump_id, int):
-			raise TypeError('jump_id is not int')
-		if not isinstance(star_log_id, int):
-			raise TypeError('star_log_id is not int')
-		if not isinstance(index, int):
-			raise TypeError('index is not int')
-
-		self.jump_id = jump_id
-		self.star_log_id = star_log_id
-		self.index = index
-
-class Jump(db.Model):
-	__tablename__ = 'jumps'
-	extend_existing=True
-
-	id = db.Column(db.Integer, primary_key=True)
-	fleet = db.Column(db.String(130))
-	jump_key = db.Column(db.String(64))
-	origin_id = db.Column(db.Integer, db.ForeignKey('star_systems.id'))
-	origin = db.relationship('StarSystem', foreign_keys=origin_id, backref=db.backref('star_systems.id', lazy='dynamic'))
-	destination_id = db.Column(db.Integer, db.ForeignKey('star_systems.id'))
-	destination = db.relationship('StarSystem',foreign_keys=destination_id , backref=db.backref('star_systems.id', lazy='dynamic'))
-	count = db.Column(db.Integer)
-	hash = db.Column(db.String(64))
-	signature = db.Column(db.String(255))
-
-	def __init__(
-		fleet,
-		jump_key,
-		origin_id,
-		destination_id,
-		count,
-		hash,
-		signature
-	):
-		if not isinstance(fleet, basestring):
-			raise TypeError('Fleet is not of type BaseString')
-		if not isinstance(jump_key, basestring):
-			raise TypeError('jump_key is not of type BaseString')
-		if not isinstance(origin, [basestring,StarSystem]):
-			raise TypeError('origin is not of type BaseString or StarSystem')
-		if not isinstance(destination, [basestring,StarSystem]):
-			raise TypeError('destination is not of type BaseString or StarSystem')
-		if not isinstance(count, int):
-			raise TypeError('count is not of type int')
-		if not isinstance(hash, basestring):
-			raise TypeError('signature is not of type int')
-
-		if count < 1:
-			raise ValueError('jumps cannot be fewer than one')
-
-		if isinstance(origin, basestring):
-			if not util.verifyFieldIsHash(origin):
-				raise ValueError('origin (of type basestring) isn't an MD5 hash')
-			self.origin = db.session.query(StarLog).filter(Starlog.hash==origin).first()
-		else:
-			self.origin = origin
-
-		if isinstance(destination, basestring):
-			if not util.verifyFieldIsHash(destination):
-				raise ValueError('destination (of type basestring) isn't an MD5 hash')
-			self.destination = db.session.query(StarLog).filter(Starlog.hash==destination).first()
-		else:
-			self.destination = destination
-
-		if self.destination==self.origin:
-			raise ValueError('Destination and origin cannot be the same')
-			
-		hashed = hashlib.sha256(fleet+jump_key+self.origin+self.destination+str(count))
-
-
-	def __repr__(self):
-		return '<Jump %r>' % self.id
-'''
