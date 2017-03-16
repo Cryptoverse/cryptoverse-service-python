@@ -26,6 +26,13 @@ def probeStarLog():
 	returnObject['task_id'] = str(tid)
 	return json.dumps(returnObject)
 
+@debug.route("/probe-star-log-sync", methods=['POST'])
+def probeStarLogSync():
+	jsonData = request.get_json()
+	task = tasks.probeStarLog.delay(jsonData)
+	result = task.get()
+	return json.dumps(result[1])
+
 @debug.route('/sign', methods=['POST'])
 def sign():
 	jsonData = request.get_json()
