@@ -135,6 +135,8 @@ class StarLog(Base):
 		return {
 			'create_time': self.time,
 			'hash': self.hash,
+			'height': self.height,
+			'chain': self.chain,
 			'log_header': self.log_header,
 			'version': self.version,
 			'previous_hash': self.previous_hash,

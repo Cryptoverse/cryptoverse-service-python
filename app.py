@@ -5,7 +5,8 @@ from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS, cross_origin
 
-starLogsMaxLimit = int(os.getenv('STARLOG_MAX_LIMIT', 10))
+starLogsMaxLimit = int(os.getenv('STARLOG_MAX_LIMIT', '10'))
+chainsMaxLimit = int(os.getenv('CHAINS_MAX_LIMIT', '10'))
 isDebug = 0 < os.getenv('CV_DEBUG', 0)
 
 app = Flask(__name__)
@@ -44,41 +45,50 @@ def poll_state():
 		return "{}"
 	return str(json.dumps(data))
 
+@app.route('/chains')
+def getChains():
+	height = request.args.get('height', None, type=int)
+	limit = request.args.get('limit', 1, type=int)
+	query = database.session.query(StarLog)
+	if height is None:
+		query = query.order_by(StarLog.height.desc())
+	else:
+		if height < 0:
+			raise ValueError('height is out of range')
+		query = query.filter_by(height=height)
+	if chainsMaxLimit < limit:
+		raise ValueError('limit greater than maximum allowed')
+	query = query.limit(limit)
+	matches = query.all()
+	result = []
+	for match in matches:
+		result.append(match.getJson())
+	return json.dumps(result)
+
 @app.route('/star-logs')
 def getStarLogs():
-	previousHash = request.args.get('previous_hash')
-	beforeTime = request.args.get('before_time')
-	sinceTime = request.args.get('since_time')
-	limit = request.args.get('limit')
-	offset = request.args.get('offset')
+	previousHash = request.args.get('previous_hash', None, type=str)
+	beforeTime = request.args.get('before_time', None, type=int)
+	sinceTime = request.args.get('since_time', None, type=int)
+	limit = request.args.get('limit', 1, type=int)
+	offset = request.args.get('offset', None, type=int)
 	query = database.session.query(StarLog)
 	if previousHash is not None:
 		if not util.verifyFieldIsSha256(previousHash):
 			raise ValueError('previous_hash is not a Sha256 hash')
 		query = query.filter_by(previous_hash=previousHash)
 	if beforeTime is not None:
-		if not isinstance(beforeTime, int):
-			raise TypeError('before_time is not an int')
 		query = query.filter(StarLog.time < beforeTime)
 	if sinceTime is not None:
-		if not isinstance(sinceTime, int):
-			raise TypeError('since_time is not an int')
 		query = query.filter(sinceTime < StarLog.time)
-	if sinceTime is not None and beforeTime is not None:
-		if beforeTime < sinceTime:
-			raise ValueError('since_time is greater than before_time')
-	if limit is not None:
-		if not isinstance(limit, int):
-			raise TypeError('limit is not an int')
-		if starLogsMaxLimit < limit:
-			raise ValueError('limit greater than maximum allowed')
-		query = query.limit(limit)
-	else:
-		query = query.limit(starLogsMaxLimit)
+	if sinceTime is not None and beforeTime is not None and beforeTime < sinceTime:
+		raise ValueError('since_time is greater than before_time')
+	if starLogsMaxLimit < limit:
+		raise ValueError('limit greater than maximum allowed')
 	if offset is not None:
-		if not isinstance(offset, int):
-			raise TypeError('offset is not an int')
 		query = query.offset(offset)
+
+	query = query.limit(limit)
 	matches = query.all()
 	result = []
 	for match in matches:
