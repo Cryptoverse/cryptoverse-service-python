@@ -95,7 +95,12 @@ class StarLog(Base):
 				highestChain = session.query(StarLog).order_by(StarLog.chain.desc()).first()
 				self.chain = highestChain.chain + 1
 			else:
-				self.chain = previous.chain
+				highestInChain = session.query(StarLog).filter_by(chain=previous.chain).order_by(StarLog.height.desc()).first()
+				if highestInChain.id == previous.id:
+					self.chain = previous.chain
+				else:
+					highestChain = session.query(StarLog).order_by(StarLog.chain.desc()).first()
+					self.chain = highestChain.chain + 1
 			# If the previous StarLog has no interval_id, that means we recalculated difficulty on it.
 			self.interval_id = previous.id if previous.interval_id is None else previous.interval_id
 			
@@ -136,7 +141,6 @@ class StarLog(Base):
 			'create_time': self.time,
 			'hash': self.hash,
 			'height': self.height,
-			'chain': self.chain,
 			'log_header': self.log_header,
 			'version': self.version,
 			'previous_hash': self.previous_hash,

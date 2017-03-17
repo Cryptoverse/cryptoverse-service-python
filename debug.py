@@ -5,14 +5,6 @@ import tasks
 
 debug = Blueprint('debug', __name__)
 
-@debug.route("/blockchain-info")
-def getBlockchainInfo():
-	info = {}
-	info['fudge'] = util.difficultyFudge
-	info['difficulty_duration'] = util.difficultyDuration
-	info['difficulty_interval'] = util.difficultyInterval
-	return json.dumps(info)
-
 @debug.route('/hash-star-log', methods=['POST'])
 def hashStarLog():
 	jsonData = request.get_json()

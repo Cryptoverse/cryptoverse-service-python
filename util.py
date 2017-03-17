@@ -10,10 +10,9 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
 
-difficultyFudge = int(os.getenv('DIFFICULTY_FUDGE', 0))
-difficultyInterval = int(os.getenv('DIFFICULTY_INTERVAL', 10080))
-difficultyDuration = int(os.getenv('DIFFICULTY_DURATION', 160))
-difficultyTotalDuration = difficultyDuration * difficultyInterval
+difficultyFudge = int(os.getenv('DIFFICULTY_FUDGE', '0'))
+difficultyInterval = int(os.getenv('DIFFICULTY_INTERVAL', '7560'))
+difficultyDuration = int(os.getenv('DIFFICULTY_DURATION', '1209600'))
 maximumTarget = '00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
 
 if not 0 <= difficultyFudge <= 8:
@@ -123,15 +122,15 @@ def calculateDifficulty(difficulty, duration):
 	Returns:
 		int: Packed int format of the next difficulty.
 	'''
-	if duration < difficultyTotalDuration / 4:
-		duration = difficultyTotalDuration / 4
-	elif duration > difficultyTotalDuration * 4:
-		duration = difficultyTotalDuration * 4
+	if duration < difficultyDuration / 4:
+		duration = difficultyDuration / 4
+	elif duration > difficultyDuration * 4:
+		duration = difficultyDuration * 4
 
 	limit = long(maximumTarget, 16)
 	result = long(unpackBits(difficulty), 16)
 	result *= duration
-	result /= difficultyTotalDuration
+	result /= difficultyDuration
 
 	if limit < result:
 		result = limit

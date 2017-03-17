@@ -30,6 +30,14 @@ def setupLogging():
 def routeIndex():
 	return 'Running'
 
+@app.route("/rules")
+def getRules():
+	return json.dumps({
+		'difficulty_fudge': util.difficultyFudge,
+		'difficulty_duration': util.difficultyDuration,
+		'difficulty_interval': util.difficultyInterval
+	})
+
 @app.route("/jobprogress")
 @cross_origin()
 def poll_state():
@@ -108,5 +116,5 @@ if isDebug:
 
 if __name__ == '__main__':
 	if 0 < util.difficultyFudge:
-		app.logger.info('All hash difficulty will be calculated with DIFFICULTY_FUDGE %s' % (util.difficultyFudge))
+		app.logger.info('All hash difficulties will be calculated with DIFFICULTY_FUDGE %s' % (util.difficultyFudge))
 	app.run(use_reloader = False)
