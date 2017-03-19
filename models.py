@@ -32,28 +32,24 @@ class StarLog(Base):
 
 		jsonStarLog = json.loads(jsonData)
 
+		if not isinstance(jsonStarLog['hash'], basestring):
+			raise TypeError('hash is not a string')
 		if not isinstance(jsonStarLog['log_header'], basestring):
-			raise TypeError('Hash is not string')
-		if not isinstance(jsonStarLog['log_header'], basestring):
-			raise TypeError('log_header is wrong type')
+			raise TypeError('log_header is not a string')
 		if not isinstance(jsonStarLog['version'], int):
-			raise TypeError('version is not int')
-		if not isinstance(jsonStarLog['log_header'], basestring):
-			raise TypeError('log_header is not string')
-		if not isinstance(jsonStarLog['version'], int):
-			raise TypeError('version is not int')
+			raise TypeError('version is not an integer')
 		if not isinstance(jsonStarLog['previous_hash'], basestring):
-			raise TypeError('previous_hash is not string')
+			raise TypeError('previous_hash is not a string')
 		if not isinstance(jsonStarLog['difficulty'], int):
-			raise TypeError('difficulty is not int')
+			raise TypeError('difficulty is not an integer')
 		if not isinstance(jsonStarLog['nonce'], int):
-			raise TypeError('nonce is not int')
+			raise TypeError('nonce is not an integer')
 		if not isinstance(jsonStarLog['time'], int):
-			raise TypeError('time is not int')
+			raise TypeError('time is not an integer')
 		if util.getTime() < jsonStarLog['time']:
 			raise ValueError('time is greater than the current time')
 		if not isinstance(jsonStarLog['state_hash'], basestring):
-			raise TypeError('state_hash is not string')
+			raise TypeError('state_hash is not a string')
 		if jsonStarLog['state'] is None:
 			raise TypeError('state is missing')
 		if not util.verifyFieldIsSha256(jsonStarLog['hash']):
@@ -118,9 +114,6 @@ class StarLog(Base):
 				raise ValueError('difficulty does not match previous difficulty')
 			else:
 				self.difficulty = previous.difficulty
-				
-
-		
 
 		for jump in jsonStarLog['state']['jumps']:
 			if not util.rsaVerifyJump(jump):
