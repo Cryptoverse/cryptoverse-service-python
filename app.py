@@ -35,7 +35,8 @@ def getRules():
 	return json.dumps({
 		'difficulty_fudge': util.difficultyFudge,
 		'difficulty_duration': util.difficultyDuration,
-		'difficulty_interval': util.difficultyInterval
+		'difficulty_interval': util.difficultyInterval,
+		'difficulty_start': util.difficultyStart
 	})
 
 @app.route("/jobprogress")
