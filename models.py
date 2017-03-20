@@ -11,6 +11,7 @@ class StarLog(Base):
 
 	id = Column(Integer, primary_key=True)
 	hash = Column(String(64))
+	fleet_id = Column(Integer)
 	height = Column(Integer)
 	chain = Column(Integer)
 	size = Column(Integer)
@@ -52,12 +53,17 @@ class StarLog(Base):
 			raise TypeError('state_hash is not a string')
 		if jsonStarLog['state'] is None:
 			raise TypeError('state is missing')
+		if jsonStarLog['state']['fleet']:
+			if not isinstance(jsonStarLog['state']['fleet'], basestring):
+				raise TypeError('state.fleet is not a string')
+			if not util.verifyFieldIsSha256(jsonStarLog['state']['fleet']):
+				raise ValueError('state.fleet is not a Sha256 hash')
 		if not util.verifyFieldIsSha256(jsonStarLog['hash']):
-			raise ValueError('hash is not a Sha256 Hash')
+			raise ValueError('hash is not a Sha256 hash')
 		if not util.verifyFieldIsSha256(jsonStarLog['previous_hash']):
-			raise ValueError('previous_hash is not a Sha256 Hash')
+			raise ValueError('previous_hash is not a Sha256 hash')
 		if not util.verifyFieldIsSha256(jsonStarLog['state_hash']):
-			raise ValueError('state_hash is not a Sha256 Hash')
+			raise ValueError('state_hash is not a Sha256 hash')
 		if not util.verifyLogHeader(jsonStarLog):
 			raise ValueError('log_header does not match provided values')
 		if not util.verifySha256(jsonStarLog['hash'], jsonStarLog['log_header']):
@@ -114,10 +120,20 @@ class StarLog(Base):
 				raise ValueError('difficulty does not match previous difficulty')
 			else:
 				self.difficulty = previous.difficulty
-
+		
 		for jump in jsonStarLog['state']['jumps']:
 			if not util.rsaVerifyJump(jump):
 				raise ValueError('state.jumps are invalid')
+
+		fleetHash = jsonStarLog['state']['fleet']
+		if fleetHash:
+			existingFleet = session.query(Fleet).filter_by(hash=fleetHash).first()
+			if not existingFleet:
+				existingFleet = Fleet(jsonStarLog['state']['fleet'], None, session)
+				session.add(existingFleet)
+				# TODO: Move this commit out of here...
+				session.commit()
+			self.fleet_id = existingFleet.id
 
 		self.hash = jsonStarLog['hash']
 		self.log_header = jsonStarLog['log_header']
@@ -141,4 +157,88 @@ class StarLog(Base):
 			'nonce': self.nonce,
 			'time': self.time,
 			'state_hash': self.state_hash
+		}
+
+class Fleet(Base):
+	__tablename__ = 'fleets'
+	extend_existing=True
+
+	id = Column(Integer, primary_key=True)
+	hash = Column(String(64))
+	public_key = Column(String(398))
+	
+	def __repr__(self):
+		return '<Fleet %r>' % self.id
+
+	def __init__(self, publicKeyHash, publicKey, session):
+		
+		if not isinstance(publicKeyHash, basestring):
+			raise TypeError('publicKeyHash is not string')
+		if not util.verifyFieldIsSha256(publicKeyHash):
+			raise ValueError('publicKeyHash is not a Sha256 hash')
+		if publicKey:
+			if len(publicKey) != 398:
+				raise ValueError('publicKey is out of range')
+			if not util.verifySha256(publicKeyHash, publicKey):
+				raise ValueError('Sha256 of publicKey does not match publicKeyHash')
+			self.public_key = publicKey
+		
+		self.hash = publicKeyHash
+		if session.query(Fleet).filter_by(hash=self.hash).first():
+			raise ValueError('the fleet publicKeyHash already exists')
+
+	def getJson(self):
+		return {
+			'hash': self.hash,
+			'public_key': self.public_key
+		}
+
+class Jump(Base):
+	__tablename__ = 'jumps'
+	extend_existing=True
+
+	id = Column(Integer, primary_key=True)
+	fleet = Column(String(130))
+	jump_key = Column(String(64))
+	origin_id = Column(Integer)
+	destination_id = Column(Integer)
+	count = Column(Integer)
+	signature = Column(String(255))
+	
+	def __repr__(self):
+		return '<Jump %r>' % self.id
+
+	def __init__(self, jsonData, session):
+		jsonJump = json.loads(jsonData)
+
+		if not isinstance(jsonJump['fleet'], basestring):
+			raise TypeError('fleet is not string')
+		if not isinstance(jsonJump['jump_key'], basestring):
+			raise TypeError('jump_key is not a string')
+		if not isinstance(jsonJump['origin'], basestring):
+			raise TypeError('origin is not a string')
+		if not isinstance(jsonJump['destination'], basestring):
+			raise TypeError('destination is not a string')
+		if not isinstance(jsonJump['signature'], basestring):
+			raise TypeError('signature is not a string')
+		if not isinstance(jsonJump['count'], int):
+			raise TypeError('count is not an integer')
+		if 0 <= jsonJump['count']:
+			raise ValueError('count is invalid')
+
+	def getJson(self):
+		# TODO: Retrieve the hashes for the origin and destination from the database
+		# TODO: Include the create time...
+		origin = None
+		destination = None
+		create_time = None
+
+		return {
+			'create_time': create_time,
+			'fleet': self.fleet,
+			'jump_key': self.jump_key,
+			'origin': origin,
+			'destination': destination,
+			'count': self.count,
+			'signature': self.signature
 		}

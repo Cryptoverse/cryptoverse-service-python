@@ -106,10 +106,19 @@ def getStarLogs():
 
 @app.route('/star-logs', methods=['POST'])
 def postStarLogs():
+	# TODO: Rollback if something goes wrong
 	posted = StarLog(request.data, database.session)
 	database.session.add(posted)
 	database.session.commit()
 	return '200', 200
+
+@app.route('/jumps')
+def getJumps():
+	return 200
+
+@app.route('/jumps', methods=['POST'])
+def postJumps():
+	return 200
 
 if isDebug:
 	from debug import debug
