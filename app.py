@@ -16,6 +16,7 @@ database = SQLAlchemy(app)
 CORS(app)
 
 import util
+import validate
 from tasks import tasker
 from models import StarLog
 
@@ -36,7 +37,8 @@ def getRules():
 		'difficulty_fudge': util.difficultyFudge,
 		'difficulty_duration': util.difficultyDuration,
 		'difficulty_interval': util.difficultyInterval,
-		'difficulty_start': util.difficultyStart
+		'difficulty_start': util.difficultyStart,
+		'ship_reward': util.shipReward
 	})
 
 @app.route("/jobprogress")
@@ -71,7 +73,7 @@ def getChains():
 	matches = query.all()
 	result = []
 	for match in matches:
-		result.append(match.getJson())
+		result.append(match.getJson(database.session))
 	return json.dumps(result)
 
 @app.route('/star-logs')
@@ -83,7 +85,7 @@ def getStarLogs():
 	offset = request.args.get('offset', None, type=int)
 	query = database.session.query(StarLog)
 	if previousHash is not None:
-		if not util.verifyFieldIsSha256(previousHash):
+		if not validate.fieldIsSha256(previousHash):
 			raise ValueError('previous_hash is not a Sha256 hash')
 		query = query.filter_by(previous_hash=previousHash)
 	if beforeTime is not None:
@@ -101,7 +103,7 @@ def getStarLogs():
 	matches = query.all()
 	result = []
 	for match in matches:
-		result.append(match.getJson())
+		result.append(match.getJson(database.session))
 	return json.dumps(result)
 
 @app.route('/star-logs', methods=['POST'])

@@ -2,6 +2,7 @@ import json
 import util
 from flask import Blueprint, request
 import tasks
+import validate
 
 debug = Blueprint('debug', __name__)
 
@@ -33,7 +34,7 @@ def sign():
 @debug.route('/verify-signature', methods=['POST'])
 def verifySignature():
 	jsonData = request.get_json()
-	return 'valid' if util.rsaVerify(jsonData['public_key'], jsonData['signature'], jsonData['message']) else 'invalid'
+	return 'valid' if validate.rsa(jsonData['public_key'], jsonData['signature'], jsonData['message']) else 'invalid'
 
 @debug.route('/sign-jump', methods=['POST'])
 def signJump():
@@ -53,7 +54,7 @@ def signJump():
 @debug.route('/verify-jump', methods=['POST'])
 def verifyJump():
 	jsonData = request.get_json()
-	return 'valid' if util.rsaVerifyJump(jsonData) else 'invalid'
+	return 'valid' if validate.jumpRsa(jsonData) else 'invalid'
 
 @debug.route('/unpack-difficulty', methods=['POST'])
 def unpackDifficulty():

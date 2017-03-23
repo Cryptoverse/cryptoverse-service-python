@@ -2,6 +2,7 @@ import json
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 import util
+import validate
 
 Base = declarative_base()
 
@@ -56,21 +57,21 @@ class StarLog(Base):
 		if jsonStarLog['state']['fleet']:
 			if not isinstance(jsonStarLog['state']['fleet'], basestring):
 				raise TypeError('state.fleet is not a string')
-			if not util.verifyFieldIsSha256(jsonStarLog['state']['fleet']):
+			if not validate.fieldIsSha256(jsonStarLog['state']['fleet']):
 				raise ValueError('state.fleet is not a Sha256 hash')
-		if not util.verifyFieldIsSha256(jsonStarLog['hash']):
+		if not validate.fieldIsSha256(jsonStarLog['hash']):
 			raise ValueError('hash is not a Sha256 hash')
-		if not util.verifyFieldIsSha256(jsonStarLog['previous_hash']):
+		if not validate.fieldIsSha256(jsonStarLog['previous_hash']):
 			raise ValueError('previous_hash is not a Sha256 hash')
-		if not util.verifyFieldIsSha256(jsonStarLog['state_hash']):
+		if not validate.fieldIsSha256(jsonStarLog['state_hash']):
 			raise ValueError('state_hash is not a Sha256 hash')
-		if not util.verifyLogHeader(jsonStarLog):
+		if not validate.logHeader(jsonStarLog):
 			raise ValueError('log_header does not match provided values')
-		if not util.verifySha256(jsonStarLog['hash'], jsonStarLog['log_header']):
+		if not validate.sha256(jsonStarLog['hash'], jsonStarLog['log_header']):
 			raise ValueError('Sha256 of log_header does not match hash')
 		if not jsonStarLog['state_hash'] == util.hashState(jsonStarLog['state']):
 			raise ValueError('state_hash does not match actual hash')
-		if not util.verifyDifficulty(jsonStarLog['difficulty'], jsonStarLog['hash']):
+		if not validate.difficulty(jsonStarLog['difficulty'], jsonStarLog['hash']):
 			raise ValueError('hash does not meet requirements of difficulty')
 		if util.isGenesisStarLogParent(jsonStarLog['previous_hash']):
 			self.height = 0
@@ -122,7 +123,7 @@ class StarLog(Base):
 				self.difficulty = previous.difficulty
 		
 		for jump in jsonStarLog['state']['jumps']:
-			if not util.rsaVerifyJump(jump):
+			if not validate.jumpRsa(jump):
 				raise ValueError('state.jumps are invalid')
 
 		fleetHash = jsonStarLog['state']['fleet']
@@ -145,7 +146,21 @@ class StarLog(Base):
 		self.state_hash = jsonStarLog['state_hash']
 		self.size = len(jsonData)
 
-	def getJson(self):
+	def getJson(self, session):
+		fleetHash = None
+		if self.fleet_id:
+			fleet = session.query(Fleet).filter_by(id=self.fleet_id).first()
+			if fleet:
+				fleetHash = fleet.hash
+		
+		jumps = []
+
+		# TODO: Get Jumps
+
+		starSystems = []
+
+		# TODO: Get Star Systems
+
 		return {
 			'create_time': self.time,
 			'hash': self.hash,
@@ -156,7 +171,12 @@ class StarLog(Base):
 			'difficulty': self.difficulty,
 			'nonce': self.nonce,
 			'time': self.time,
-			'state_hash': self.state_hash
+			'state_hash': self.state_hash,
+			'state': {
+				'fleet': fleetHash,
+				'jumps': jumps,
+				'star_systems': starSystems
+			}
 		}
 
 class Fleet(Base):
@@ -174,12 +194,12 @@ class Fleet(Base):
 		
 		if not isinstance(publicKeyHash, basestring):
 			raise TypeError('publicKeyHash is not string')
-		if not util.verifyFieldIsSha256(publicKeyHash):
+		if not validate.fieldIsSha256(publicKeyHash):
 			raise ValueError('publicKeyHash is not a Sha256 hash')
 		if publicKey:
 			if len(publicKey) != 398:
 				raise ValueError('publicKey is out of range')
-			if not util.verifySha256(publicKeyHash, publicKey):
+			if not validate.sha256(publicKeyHash, publicKey):
 				raise ValueError('Sha256 of publicKey does not match publicKeyHash')
 			self.public_key = publicKey
 		
@@ -187,7 +207,7 @@ class Fleet(Base):
 		if session.query(Fleet).filter_by(hash=self.hash).first():
 			raise ValueError('the fleet publicKeyHash already exists')
 
-	def getJson(self):
+	def getJson(self, session):
 		return {
 			'hash': self.hash,
 			'public_key': self.public_key
@@ -226,7 +246,7 @@ class Jump(Base):
 		if 0 <= jsonJump['count']:
 			raise ValueError('count is invalid')
 
-	def getJson(self):
+	def getJson(self, session):
 		# TODO: Retrieve the hashes for the origin and destination from the database
 		# TODO: Include the create time...
 		origin = None
