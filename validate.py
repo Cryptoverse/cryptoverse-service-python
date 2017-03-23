@@ -8,16 +8,18 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 import util
 
+def byteSize(limit, target):
+	if limit < len(target):
+		raise Exception('Length is not less than %s bytes' % limit)
+
 def fieldIsSha256(sha):
 	'''Verifies a string is a possible Sha256 hash.
 
 	Args:
 		sha (str): Hash to verify.
-
-	Returns:
-		bool: True for success, False otherwise.
 	'''
-	return re.match(r'^[A-Fa-f0-9]{64}$', sha)
+	if not re.match(r'^[A-Fa-f0-9]{64}$', sha):
+		raise Exception('Field is not a hash')
 
 def rsa(publicKey, signature, message):
 	'''Verifies an Rsa signature.
@@ -25,9 +27,6 @@ def rsa(publicKey, signature, message):
 		publicKey (str): Public key with BEGIN and END sections.
 		signature (str): Hex value of the signature with its leading 0x stripped.
 		message (str): Message that was signed, unhashed.
-
-	Returns:
-		bool: True if the signature is valid, False otherwise.
 	'''
 	try:
 		publicRsa = load_pem_public_key(bytes(publicKey), backend=default_backend())
@@ -41,9 +40,8 @@ def rsa(publicKey, signature, message):
 			),
 			hashes.SHA256()
 		)
-		return True
 	except InvalidSignature:
-		return False
+		raise Exception('Invalid signature')
 
 def sha256(sha, message):
 	'''Verifies the hash matches the Sha256'd message.
@@ -51,33 +49,78 @@ def sha256(sha, message):
 	Args:
 		sha (str): A Sha256 hash result.
 		message (str): Message to hash and compare to.
-	
-	Returns:
-		bool: True if the hash matches the hashed message, False otherwies.
 	'''
-	return sha == util.sha256(message)
+	if not sha == util.sha256(message):
+		raise Exception('Sha256 does not match message')
 
-def logHeader(starLog):
-	'''Verifies the header of this log matches the provided one.
+def starLog(starLogJson):
+	'''Verifies the star log has all the required fields, and any hashes and signatures match up.
 
 	Args:
-		starLog (dict): Target.
-
-	Returns:
-		bool: True if there is a match, False otherwise.
+		target (dict): Target starlog json.
 	'''
-	return starLog['log_header'] == util.concatStarLogHeader(starLog)
+	if not isinstance(starLogJson['hash'], basestring):
+		raise Exception('hash is not a string')
+	if not isinstance(starLogJson['version'], int):
+		raise Exception('version is not an integer')
+	if not isinstance(starLogJson['previous_hash'], basestring):
+		raise Exception('previous_hash is not a string')
+	if not isinstance(starLogJson['difficulty'], int):
+		raise Exception('difficulty is not an integer')
+	if not isinstance(starLogJson['nonce'], int):
+		raise Exception('nonce is not an integer')
+	if not isinstance(starLogJson['time'], int):
+		raise Exception('time is not an integer')
+	if util.getTime() < starLogJson['time']:
+		raise Exception('time is greater than the current time')
+	if not isinstance(starLogJson['state_hash'], basestring):
+		raise Exception('state_hash is not a string')
+	if starLogJson['state'] is None:
+		raise Exception('state is missing')
+	if starLogJson['state']['fleet']:
+		if not isinstance(starLogJson['state']['fleet'], basestring):
+			raise Exception('state.fleet is not a string')
+		if not fieldIsSha256(starLogJson['state']['fleet']):
+			raise Exception('state.fleet is not a Sha256 hash')
+	if not fieldIsSha256(starLogJson['hash']):
+		raise Exception('hash is not a Sha256 hash')
+	if not fieldIsSha256(starLogJson['previous_hash']):
+		raise Exception('previous_hash is not a Sha256 hash')
+	if not fieldIsSha256(starLogJson['state_hash']):
+		raise Exception('state_hash is not a Sha256 hash')
+	if not sha256(starLogJson['hash'], util.concatStarLogHeader(starLogJson)):
+		raise Exception('Sha256 of log_header does not match hash')
+	if not starLogJson['state_hash'] == util.hashState(starLogJson['state']):
+		raise Exception('state_hash does not match actual hash')
+	if not difficulty(starLogJson['difficulty'], starLogJson['hash']):
+		raise Exception('hash does not meet requirements of difficulty')
+
+def previousJump(previousFleet, jumpJson):
+	'''Verifies the fields of a previous jump, included with a starlog by the prober.
+
+	Args:
+		jumpJson (dict): Target.
+	'''
+	if previousFleet is None:
+		raise ValueError('previousFleet is missing')
+	if jumpJson is None:
+		raise ValueError('jumpJson is missing')
+	if previousFleet.hash is None:
+		raise ValueError('previousFleet.hash is missing')
+	if jumpJson['fleet_hash'] is None:
+		raise ValueError('jumpJson.fleet_hash is missing')
+	if previousFleet.hash != jumpJson['fleet_hash']:
+		raise ValueError('previousFleet.hash and jumpJson.fleet_hash do not match')
+	
 
 def jumpRsa(jump):
 	'''Verifies the Rsa signature of the provided jump json.
 
 	Args:
 		jump (dict): Jump to validate.
-
-	Returns:
-		bool: True if the jump is properly signed, False otherwise.
 	'''
-	return rsa(util.expandRsaPublicKey(jump['fleet']), jump['signature'], util.concatJump(jump))
+	if not rsa(util.expandRsaPublicKey(jump['fleet']), jump['signature'], util.concatJump(jump)):
+		raise Exception('Invalid RSA signature')
 
 def difficulty(packed, sha):
 	'''Takes the integer form of difficulty and verifies that the hash is less than it.
@@ -85,19 +128,17 @@ def difficulty(packed, sha):
 	Args:
 		packed (int): Packed target difficulty the provided Sha256 hash must meet.
 		sha (str): Hex target to test, stripped of its leading 0x.
-
-	Returns:
-		bool: True if the provided Sha256 hash is less than target specified by the packed difficulty.
 	'''
 	if not isinstance(packed, (int, long)):
-		raise TypeError('difficulty is not an int')
+		raise Exception('difficulty is not an int')
 	if not fieldIsSha256(sha):
-		raise ValueError('hash is invalid')
+		raise Exception('hash is invalid')
 
 	mask = util.unpackBits(packed).rstrip('0')
 	significant = sha[:len(mask)]
 	try:
-		return int(significant, 16) < int(mask, 16)
+		if int(mask, 16) <= int(significant, 16):
+			raise Exception('Hash is greater than packed target')
 	except:
 		traceback.print_exc()
-		return False
+		raise Exception('Unable to cast to int from hexidecimal')

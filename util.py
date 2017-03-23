@@ -157,7 +157,7 @@ def concatJump(jump):
 	Returns:
 		str: Resulting concat'd information of the jump.
 	'''
-	return '%s%s%s%s%s'%(jump['fleet'], jump['key'], jump['origin'], jump['destination'], jump['count'])
+	return '%s%s%s%s%s'%(jump['fleet_hash'], jump['key'], jump['origin'], jump['destination'], jump['count'])
 
 def expandRsaPublicKey(shrunkPublicKey):
 	'''Reformats a shrunk Rsa public key.

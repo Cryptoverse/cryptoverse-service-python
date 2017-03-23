@@ -29,51 +29,15 @@ class StarLog(Base):
 		return '<StarLog %r>' % self.hash
 
 	def __init__(self, jsonData, session):
-		if 999999 < len(jsonData):
-			raise Exception('Length of submission is not less than 1 megabyte')
+		validate.byteSize(999999, jsonData)
 
-		jsonStarLog = json.loads(jsonData)
+		starLogJson = json.loads(jsonData)
 
-		if not isinstance(jsonStarLog['hash'], basestring):
-			raise TypeError('hash is not a string')
-		if not isinstance(jsonStarLog['log_header'], basestring):
-			raise TypeError('log_header is not a string')
-		if not isinstance(jsonStarLog['version'], int):
-			raise TypeError('version is not an integer')
-		if not isinstance(jsonStarLog['previous_hash'], basestring):
-			raise TypeError('previous_hash is not a string')
-		if not isinstance(jsonStarLog['difficulty'], int):
-			raise TypeError('difficulty is not an integer')
-		if not isinstance(jsonStarLog['nonce'], int):
-			raise TypeError('nonce is not an integer')
-		if not isinstance(jsonStarLog['time'], int):
-			raise TypeError('time is not an integer')
-		if util.getTime() < jsonStarLog['time']:
-			raise ValueError('time is greater than the current time')
-		if not isinstance(jsonStarLog['state_hash'], basestring):
-			raise TypeError('state_hash is not a string')
-		if jsonStarLog['state'] is None:
-			raise TypeError('state is missing')
-		if jsonStarLog['state']['fleet']:
-			if not isinstance(jsonStarLog['state']['fleet'], basestring):
-				raise TypeError('state.fleet is not a string')
-			if not validate.fieldIsSha256(jsonStarLog['state']['fleet']):
-				raise ValueError('state.fleet is not a Sha256 hash')
-		if not validate.fieldIsSha256(jsonStarLog['hash']):
-			raise ValueError('hash is not a Sha256 hash')
-		if not validate.fieldIsSha256(jsonStarLog['previous_hash']):
-			raise ValueError('previous_hash is not a Sha256 hash')
-		if not validate.fieldIsSha256(jsonStarLog['state_hash']):
-			raise ValueError('state_hash is not a Sha256 hash')
-		if not validate.logHeader(jsonStarLog):
-			raise ValueError('log_header does not match provided values')
-		if not validate.sha256(jsonStarLog['hash'], jsonStarLog['log_header']):
-			raise ValueError('Sha256 of log_header does not match hash')
-		if not jsonStarLog['state_hash'] == util.hashState(jsonStarLog['state']):
-			raise ValueError('state_hash does not match actual hash')
-		if not validate.difficulty(jsonStarLog['difficulty'], jsonStarLog['hash']):
-			raise ValueError('hash does not meet requirements of difficulty')
-		if util.isGenesisStarLogParent(jsonStarLog['previous_hash']):
+		validate.starLog(starLogJson)
+
+		previousFleet = None
+
+		if util.isGenesisStarLogParent(starLogJson['previous_hash']):
 			self.height = 0
 			duplicateHeight = session.query(StarLog).filter_by(height=self.height).order_by(StarLog.chain.desc()).first()
 			if duplicateHeight is None:
@@ -81,15 +45,15 @@ class StarLog(Base):
 			else:
 				highestChain = session.query(StarLog).order_by(StarLog.chain.desc()).first()
 				self.chain = highestChain.chain + 1
-			self.difficulty = jsonStarLog['difficulty']
+			self.difficulty = starLogJson['difficulty']
 		else:
-			previous = session.query(StarLog).filter_by(hash=jsonStarLog['previous_hash']).first()
+			previous = session.query(StarLog).filter_by(hash=starLogJson['previous_hash']).first()
 			if previous is None:
-				raise ValueError('no previous entry with hash '+jsonStarLog['previous_hash'])
-			if jsonStarLog['time'] < previous.time:
+				raise ValueError('no previous entry with hash '+starLogJson['previous_hash'])
+			if starLogJson['time'] < previous.time:
 				raise ValueError('time is less than previous time')
-			if not session.query(StarLog).filter_by(hash=jsonStarLog['hash']).first() is None:
-				raise ValueError('entry with hash %s already exists' % (jsonStarLog['hash']))
+			if not session.query(StarLog).filter_by(hash=starLogJson['hash']).first() is None:
+				raise ValueError('entry with hash %s already exists' % (starLogJson['hash']))
 			self.height = previous.height + 1
 			duplicateHeight = session.query(StarLog).filter_by(height=self.height).order_by(StarLog.chain.desc()).first()
 			if duplicateHeight is None:
@@ -113,37 +77,50 @@ class StarLog(Base):
 					raise ValueError('unable to find interval start with id %s' % (previous.interval_id))
 				duration = previous.time - intervalStart.time
 				difficulty = util.calculateDifficulty(previous.difficulty, duration)
-				if jsonStarLog['difficulty'] != difficulty:
+				if starLogJson['difficulty'] != difficulty:
 					raise ValueError('difficulty does not match recalculated difficulty')
 				# This lets the next in the chain know to use our id for the interval_id.
 				self.interval_id = None
-			elif jsonStarLog['difficulty'] != previous.difficulty:
+			elif starLogJson['difficulty'] != previous.difficulty:
 				raise ValueError('difficulty does not match previous difficulty')
 			else:
 				self.difficulty = previous.difficulty
+
+			if previous.fleet_id:
+				previousFleet = session.query(Fleet).filter_by(id=previous.fleet_id).first()
+				if previousFleet is None:
+					raise ValueError('no fleet for the previous starlog can be found')
 		
-		for jump in jsonStarLog['state']['jumps']:
+		allJumps = starLogJson['state']['jumps']
+		
+		if previousFleet and allJumps is None:
+			raise ValueError('previous fleet jump was not added to list of jumps')
+
+		previousFleetFound = previousFleet is None
+		for jump in allJumps:
+			# if not previousFleetFound and jump['fleetHash'] == :
+
 			if not validate.jumpRsa(jump):
 				raise ValueError('state.jumps are invalid')
 
-		fleetHash = jsonStarLog['state']['fleet']
+		fleetHash = starLogJson['state']['fleet']
 		if fleetHash:
 			existingFleet = session.query(Fleet).filter_by(hash=fleetHash).first()
 			if not existingFleet:
-				existingFleet = Fleet(jsonStarLog['state']['fleet'], None, session)
+				existingFleet = Fleet(starLogJson['state']['fleet'], None, session)
 				session.add(existingFleet)
 				# TODO: Move this commit out of here...
 				session.commit()
 			self.fleet_id = existingFleet.id
 
-		self.hash = jsonStarLog['hash']
-		self.log_header = jsonStarLog['log_header']
-		self.version = jsonStarLog['version']
-		self.previous_hash = jsonStarLog['previous_hash']
-		self.difficulty = jsonStarLog['difficulty']
-		self.nonce = jsonStarLog['nonce']
-		self.time = jsonStarLog['time']
-		self.state_hash = jsonStarLog['state_hash']
+		self.hash = starLogJson['hash']
+		self.log_header = util.concatStarLogHeader(starLogJson)
+		self.version = starLogJson['version']
+		self.previous_hash = starLogJson['previous_hash']
+		self.difficulty = starLogJson['difficulty']
+		self.nonce = starLogJson['nonce']
+		self.time = starLogJson['time']
+		self.state_hash = starLogJson['state_hash']
 		self.size = len(jsonData)
 
 	def getJson(self, session):
