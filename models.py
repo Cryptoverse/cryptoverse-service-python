@@ -171,8 +171,7 @@ class Fleet(Base):
 		
 		if not isinstance(publicKeyHash, basestring):
 			raise TypeError('publicKeyHash is not string')
-		if not validate.fieldIsSha256(publicKeyHash):
-			raise ValueError('publicKeyHash is not a Sha256 hash')
+		validate.fieldIsSha256(publicKeyHash, 'publicKeyHash')
 		if publicKey:
 			if len(publicKey) != 398:
 				raise ValueError('publicKey is out of range')

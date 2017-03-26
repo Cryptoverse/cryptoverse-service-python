@@ -12,14 +12,14 @@ def byteSize(limit, target):
 	if limit < len(target):
 		raise Exception('Length is not less than %s bytes' % limit)
 
-def fieldIsSha256(sha):
+def fieldIsSha256(sha, fieldName=None):
 	'''Verifies a string is a possible Sha256 hash.
 
 	Args:
 		sha (str): Hash to verify.
 	'''
 	if not re.match(r'^[A-Fa-f0-9]{64}$', sha):
-		raise Exception('Field is not a hash')
+		raise Exception('Field is not a hash' if fieldName is None else 'Field %s is not a hash' % fieldName)
 
 def rsa(publicKey, signature, message):
 	'''Verifies an Rsa signature.
@@ -43,7 +43,7 @@ def rsa(publicKey, signature, message):
 	except InvalidSignature:
 		raise Exception('Invalid signature')
 
-def sha256(sha, message):
+def sha256(sha, message, name=None):
 	'''Verifies the hash matches the Sha256'd message.
 
 	Args:
@@ -51,7 +51,7 @@ def sha256(sha, message):
 		message (str): Message to hash and compare to.
 	'''
 	if not sha == util.sha256(message):
-		raise Exception('Sha256 does not match message')
+		raise Exception('Sha256 does not match message' if name is None else 'Sha256 of %s does not match hash' % name)
 
 def starLog(starLogJson):
 	'''Verifies the star log has all the required fields, and any hashes and signatures match up.
@@ -80,20 +80,15 @@ def starLog(starLogJson):
 	if starLogJson['state']['fleet']:
 		if not isinstance(starLogJson['state']['fleet'], basestring):
 			raise Exception('state.fleet is not a string')
-		if not fieldIsSha256(starLogJson['state']['fleet']):
-			raise Exception('state.fleet is not a Sha256 hash')
-	if not fieldIsSha256(starLogJson['hash']):
-		raise Exception('hash is not a Sha256 hash')
-	if not fieldIsSha256(starLogJson['previous_hash']):
-		raise Exception('previous_hash is not a Sha256 hash')
-	if not fieldIsSha256(starLogJson['state_hash']):
-		raise Exception('state_hash is not a Sha256 hash')
-	if not sha256(starLogJson['hash'], util.concatStarLogHeader(starLogJson)):
-		raise Exception('Sha256 of log_header does not match hash')
+		fieldIsSha256(starLogJson['state']['fleet'], 'state.fleet')
+	
+	fieldIsSha256(starLogJson['hash'], 'hash')
+	fieldIsSha256(starLogJson['previous_hash'], 'previous_hash')
+	fieldIsSha256(starLogJson['state_hash'], 'state_hash')
+	sha256(starLogJson['hash'], util.concatStarLogHeader(starLogJson), 'log_header')
 	if not starLogJson['state_hash'] == util.hashState(starLogJson['state']):
 		raise Exception('state_hash does not match actual hash')
-	if not difficulty(starLogJson['difficulty'], starLogJson['hash']):
-		raise Exception('hash does not meet requirements of difficulty')
+	difficulty(starLogJson['difficulty'], starLogJson['hash'])
 
 def previousJump(previousFleet, jumpJson):
 	'''Verifies the fields of a previous jump, included with a starlog by the prober.
@@ -119,7 +114,7 @@ def jumpRsa(jump):
 	Args:
 		jump (dict): Jump to validate.
 	'''
-	if not rsa(util.expandRsaPublicKey(jump['fleet']), jump['signature'], util.concatJump(jump)):
+	if not rsa(util.expandRsaPublicKey(jump['fleet_key']), jump['signature'], util.concatJump(jump)):
 		raise Exception('Invalid RSA signature')
 
 def difficulty(packed, sha):
@@ -131,8 +126,8 @@ def difficulty(packed, sha):
 	'''
 	if not isinstance(packed, (int, long)):
 		raise Exception('difficulty is not an int')
-	if not fieldIsSha256(sha):
-		raise Exception('hash is invalid')
+	
+	fieldIsSha256(sha, 'difficulty target')
 
 	mask = util.unpackBits(packed).rstrip('0')
 	significant = sha[:len(mask)]
@@ -140,5 +135,4 @@ def difficulty(packed, sha):
 		if int(mask, 16) <= int(significant, 16):
 			raise Exception('Hash is greater than packed target')
 	except:
-		traceback.print_exc()
 		raise Exception('Unable to cast to int from hexidecimal')

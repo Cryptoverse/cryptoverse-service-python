@@ -22,7 +22,7 @@ elif 0 < difficultyFudge:
 	suffix = maximumTarget[:difficultyFudge]
 	maximumTarget = prefix + suffix
 
-def isGenesisStarLogParent(sha):
+def isGenesisStarLog(sha):
 	'''Checks if the provided hash could only belong to the parent of the genesis star log.
 
 	Args:

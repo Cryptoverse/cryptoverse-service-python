@@ -85,8 +85,7 @@ def getStarLogs():
 	offset = request.args.get('offset', None, type=int)
 	query = database.session.query(StarLog)
 	if previousHash is not None:
-		if not validate.fieldIsSha256(previousHash):
-			raise ValueError('previous_hash is not a Sha256 hash')
+		validate.fieldIsSha256(previousHash, 'previous_hash')
 		query = query.filter_by(previous_hash=previousHash)
 	if beforeTime is not None:
 		query = query.filter(StarLog.time < beforeTime)
