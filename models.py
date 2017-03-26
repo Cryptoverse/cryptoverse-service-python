@@ -37,7 +37,7 @@ class StarLog(Base):
 
 		previousFleet = None
 
-		if util.isGenesisStarLogParent(starLogJson['previous_hash']):
+		if util.isGenesisStarLog(starLogJson['previous_hash']):
 			self.height = 0
 			duplicateHeight = session.query(StarLog).filter_by(height=self.height).order_by(StarLog.chain.desc()).first()
 			if duplicateHeight is None:
