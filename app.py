@@ -139,11 +139,11 @@ def postStarLogs():
 		if not isGenesis:
 			previousChain = session.query(ChainIndex).filter_by(hash=previousHash).first()
 			if previousChain is None:
-				raise ValueError('previous starlog with hash "%s" cannot be found' % previousHash)
+				raise ValueError('previous starlog with hash %s cannot be found' % previousHash)
 
 		chainIndex = session.query(ChainIndex).filter_by(hash=starLogJson['hash']).first()
 		if chainIndex:
-			raise ValueError('starlog with hash "%s" already exists' % chainIndex.hash)
+			raise ValueError('starlog with hash %s already exists' % chainIndex.hash)
 		
 		highestChain = session.query(Chain).order_by(Chain.chain.desc()).first()
 		rootId = None
@@ -175,7 +175,7 @@ def postStarLogs():
 		else:
 			chain = session.query(Chain).filter_by(chain=chainCount).first()
 			if chain is None:
-				raise ValueError('no chain "%s" exists' % chainCount)
+				raise ValueError('no chain %s exists' % chainCount)
 			chain.height = height
 
 		chainIndex = ChainIndex(rootId, previousChainId, None, previousStarLogId, starLogJson['hash'], starLogJson['previous_hash'], height, chainCount)
@@ -235,9 +235,15 @@ def postStarLogs():
 			allSystems = util.getSystems(starLogJson['state'])
 			previousJumps = session.query(StarLogJump).filter_by(star_log_id=previousStarLogId).all()
 			for previousJump in previousJumps:
-				jumpedSystem = session.query(StarLog).filter_by(id=previousJump.star_log_id).first()
-				if jumpedSystem.hash not in allSystems:
-					raise ValueError('system "%s" not found in state.star_systems' % jumpedSystem.hash)
+				jump = session.query(Jump).filter_by(id=previousJump.jump_id).first()
+				if jump.origin_id:
+					originSystem = session.query(StarLog).filter_by(id=jump.origin_id).first()
+					if originSystem.hash not in allSystems:
+						raise ValueError('origin system %s was not found in state.star_systems' % originSystem.hash)
+				destinationId = previousStarLogId if jump.destination_id is None else jump.destination_id
+				destinationSystem = session.query(StarLog).filter_by(id=destinationId).first()
+				if destinationSystem.hash not in allSystems:
+					raise ValueError('destination system %s was not found in state.star_systems' % destinationSystem.hash)
 
 		starLog = StarLog(starLogJson['hash'], chainIndex.id, height, len(request.data), starLogJson['log_header'], starLogJson['version'], starLogJson['previous_hash'], starLogJson['difficulty'], starLogJson['nonce'], starLogJson['time'], starLogJson['state_hash'], intervalId)
 		session.add(starLog)
