@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -9,7 +9,7 @@ class StarLog(Base):
 
 	id = Column(Integer, primary_key=True)
 	hash = Column(String(64))
-	chain_index_id = Column(Integer)
+	chain_index_id = Column(Integer, ForeignKey('chain_indices.id'))
 	height = Column(Integer)
 	size = Column(Integer)
 	log_header = Column(String(255))
@@ -19,7 +19,7 @@ class StarLog(Base):
 	nonce = Column(Integer)
 	time = Column(Integer)
 	state_hash = Column(String(64))
-	interval_id = Column(Integer)
+	interval_id = Column(Integer, ForeignKey('star_logs.id'))
 
 	def __repr__(self):
 		return '<StarLog %r>' % self.hash
@@ -66,15 +66,15 @@ class ChainIndex(Base):
 	extend_existing=True
 
 	id = Column(Integer, primary_key=True)
-	root_id = Column(Integer)
-	previous_id = Column(Integer)
-	star_log_id = Column(Integer)
-	previous_star_log_id = Column(Integer)
+	root_id = Column(Integer, ForeignKey('chain_indices.id'))
+	previous_id = Column(Integer, ForeignKey('chain_indices.id'))
+	star_log_id = Column(Integer, ForeignKey('star_logs.id'))
+	previous_star_log_id = Column(Integer, ForeignKey('star_logs.id'))
 	hash = Column(String(64))
 	previous_hash = Column(String(64))
 	height = Column(Integer)
 	chain = Column(Integer)
-	
+
 	def __repr__(self):
 		return '<Chain Index %s>' % self.id
 
