@@ -12,7 +12,7 @@ class StarLog(Base):
 
 	id = Column(Integer, primary_key=True)
 	hash = Column(String(64))
-	chain = Column(Integer)
+	chain_id = Column(Integer)
 	height = Column(Integer)
 	size = Column(Integer)
 	log_header = Column(String(255))
@@ -27,9 +27,9 @@ class StarLog(Base):
 	def __repr__(self):
 		return '<StarLog %r>' % self.hash
 
-	def __init__(self, hash, chain, height, size, log_header, version, previous_hash, difficulty, nonce, time, state_hash, interval_id):
+	def __init__(self, hash, chain_id, height, size, log_header, version, previous_hash, difficulty, nonce, time, state_hash, interval_id):
 		self.hash = hash
-		self.chain = chain
+		self.chain_id = chain_id
 		self.height = height
 		self.size = size
 		self.log_header = log_header
