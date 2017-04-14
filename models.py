@@ -38,9 +38,8 @@ class StarLog(Base):
 		self.state_hash = state_hash
 		self.interval_id = interval_id
 
-	def getJson(self):
-		jumps = []
-		# TODO: Get Jumps
+	def getJson(self, jumps=[]):
+		
 		starSystems = []
 		# TODO: Get Star Systems
 
@@ -146,9 +145,9 @@ class Jump(Base):
 	extend_existing=True
 
 	id = Column(Integer, primary_key=True)
-	fleet_id = Column(Integer)
-	origin_id = Column(Integer)
-	destination_id = Column(Integer)
+	fleet_id = Column(Integer, ForeignKey('fleets.id'))
+	origin_id = Column(Integer, ForeignKey('star_logs.id'))
+	destination_id = Column(Integer, ForeignKey('star_logs.id'))
 	key = Column(String(64))
 	count = Column(Integer)
 	lost_count = Column(Integer)
@@ -166,20 +165,18 @@ class Jump(Base):
 		self.lost_count = lost_count
 		self.signature = signature
 
-	def getJson(self, session):
-		# TODO: Retrieve the hashes for the origin and destination from the database
+	def getJson(self, fleet_hash=None, fleet_key=None, origin=None, destination=None):
 		# TODO: Include the create time...
-		origin = None
-		destination = None
 		create_time = None
 
 		return {
-			'create_time': create_time,
-			'fleet_id': self.fleet,
-			'key': self.jump_key,
+			'fleet_hash': fleet_hash,
+			'fleet_key': fleet_key,
+			'key': self.key,
 			'origin': origin,
 			'destination': destination,
 			'count': self.count,
+			'lost_count': self.lost_count,
 			'signature': self.signature
 		}
 
