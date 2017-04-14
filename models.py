@@ -1,8 +1,5 @@
-import json
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
-import util
-import validate
 
 Base = declarative_base()
 
@@ -129,7 +126,7 @@ class Fleet(Base):
 
 	id = Column(Integer, primary_key=True)
 	hash = Column(String(64))
-	public_key = Column(String(398))
+	public_key = Column(String(392))
 	
 	def __repr__(self):
 		return '<Fleet %r>' % self.id
@@ -149,7 +146,7 @@ class Jump(Base):
 	extend_existing=True
 
 	id = Column(Integer, primary_key=True)
-	fleet_id = Column(String(130))
+	fleet_id = Column(Integer)
 	origin_id = Column(Integer)
 	destination_id = Column(Integer)
 	key = Column(String(64))
@@ -184,4 +181,26 @@ class Jump(Base):
 			'destination': destination,
 			'count': self.count,
 			'signature': self.signature
+		}
+
+class StarLogJump(Base):
+	__tablename__ = 'star_log_jumps'
+	extend_existing=True
+
+	id = Column(Integer, primary_key=True)
+	jump_id = Column(Integer)
+	star_log_id = Column(Integer)
+	index = Column(Integer)
+	
+	def __repr__(self):
+		return '<Starlog Jumps %s>' % self.id
+
+	def __init__(self, jump_id, star_log_id, index):
+		self.jump_id = jump_id
+		self.star_log_id = star_log_id
+		self.index = index
+
+	def getJson(self):
+		return {
+			'index': self.index
 		}

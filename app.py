@@ -18,7 +18,7 @@ CORS(app)
 import util
 import validate
 from tasks import tasker
-from models import StarLog, Fleet, Jump, Chain, ChainIndex
+from models import StarLog, Fleet, Jump, StarLogJump, Chain, ChainIndex
 
 @app.before_first_request
 def setupLogging():
@@ -194,13 +194,13 @@ def postStarLogs():
 				session.add(Fleet(fleetHash, fleetPublicKey))
 		
 		jumps = []
-		for jump in starLogJson['state']['jumps']:
-			linkedJump = session.query(Jump).filter_by(key=jump['key']).first()
-			if linkedJump is None:
-				originHash = jump['origin']
-				destinationHash = jump['destination']
+		for currentJump in starLogJson['state']['jumps']:
+			jump = session.query(Jump).filter_by(key=currentJump['key']).first()
+			if jump is None:
+				originHash = currentJump['origin']
+				destinationHash = currentJump['destination']
 
-				fleet = session.query(Fleet).filter_by(hash=jump['fleet_hash']).first()
+				fleet = session.query(Fleet).filter_by(hash=currentJump['fleet_hash']).first()
 				origin = session.query(StarLog).filter_by(hash=originHash).first() if originHash else None
 				destination = session.query(StarLog).filter_by(hash=destinationHash).first() if destinationHash else None
 
@@ -211,15 +211,22 @@ def postStarLogs():
 				if destination:
 					destination = destination.id
 				
-				linkedJump = Jump(fleet, origin, destination, jump['key'], jump['count'], jump['lost_count'], jump['signature'])
-				session.add(linkedJump)
-			jumps.append(linkedJump)
+				jump = Jump(fleet, origin, destination, currentJump['key'], currentJump['count'], currentJump['lost_count'], currentJump['signature'])
+				session.add(jump)
+			jumps.append(jump)
 		
 		starLog = StarLog(starLogJson['hash'], chainIndex.id, height, len(request.data), starLogJson['log_header'], starLogJson['version'], starLogJson['previous_hash'], starLogJson['difficulty'], starLogJson['nonce'], starLogJson['time'], starLogJson['state_hash'], intervalId)
 		session.add(starLog)
 		session.commit()
 		chainIndex.star_log_id = starLog.id
 		chain.star_log_id = starLog.id
+
+		jumpIndex = 0
+		for currentJump in jumps:
+			starLogJump = StarLogJump(currentJump.id, starLog.id, jumpIndex)
+			session.add(starLogJump)
+			jumpIndex += 1
+
 		session.commit()
 	except:
 		session.rollback()
