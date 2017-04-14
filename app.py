@@ -18,7 +18,7 @@ CORS(app)
 import util
 import validate
 from tasks import tasker
-from models import StarLog, Fleet, Jump, Chain
+from models import StarLog, Fleet, Jump, Chain, ChainIndex
 
 @app.before_first_request
 def setupLogging():
@@ -121,34 +121,51 @@ def postStarLogs():
 		previousHash = starLogJson['previous_hash']
 		isGenesis = util.isGenesisStarLog(previousHash)
 		if not isGenesis:
-			previousChain = session.query(Chain).filter_by(hash=previousHash).first()
+			previousChain = session.query(ChainIndex).filter_by(hash=previousHash).first()
 			if previousChain is None:
 				raise ValueError('previous starlog with hash "%s" cannot be found' % previousHash)
 
-		chain = session.query(Chain).filter_by(hash=starLogJson['hash']).first()
-		if chain:
-			raise ValueError('starlog with hash "%s" already exists' % chain.hash)
+		chainIndex = session.query(ChainIndex).filter_by(hash=starLogJson['hash']).first()
+		if chainIndex:
+			raise ValueError('starlog with hash "%s" already exists' % chainIndex.hash)
 		
+		highestChain = session.query(Chain).order_by(Chain.chain.desc()).first()
 		rootId = None
 		previousChainId = None
 		previousStarLogId = None
 		height = 0
-		chain = 0
+		chainCount = 0
 
-		if not isGenesis:
+		if isGenesis:
+			chainCount = 0 if highestChain is None else highestChain.chain + 1
+		else:
 			rootId = previousChain.id if previousChain.root_id is None else previousChain.root_id
 			previousChainId = previousChain.id
 			previousStarLogId = previousChain.star_log_id
 			height = previousChain.height + 1
-			chain = previousChain.chain
+			chainCount = previousChain.chain
 		
-		if session.query(Chain).filter_by(height=height, chain=chain).first():
-			rootId = None if isGenesis else previousChain.id
-			highestChain = session.query(Chain).order_by(Chain.chain.desc()).first()
-			chain = highestChain.chain + 1
+		chain = None
 
-		chain = Chain(rootId, previousChainId, None, previousStarLogId, starLogJson['hash'], starLogJson['previous_hash'], height, chain)
-		session.add(chain)
+		if session.query(ChainIndex).filter_by(height=height, chain=chainCount).first():
+			# A sibling chain is being created.
+			rootId = None if isGenesis else previousChain.id
+			chainCount = highestChain.chain + 1
+			chain = Chain(height, None, chainCount, None)
+			session.add(chain)
+		elif isGenesis:
+			chain = Chain(height, None, chainCount, None)
+			session.add(chain)
+		else:
+			chain = session.query(Chain).filter_by(chain=chainCount).first()
+			if chain is None:
+				raise ValueError('no chain "%s" exists' % chainCount)
+			chain.height = height
+
+		chainIndex = ChainIndex(rootId, previousChainId, None, previousStarLogId, starLogJson['hash'], starLogJson['previous_hash'], height, chainCount)
+		session.add(chainIndex)
+		session.commit()
+		chain.head_index_id = chainIndex.id
 
 		previousStarLog = None if previousStarLogId is None else session.query(StarLog).filter_by(id=previousStarLogId).first()
 
@@ -198,9 +215,10 @@ def postStarLogs():
 				session.add(linkedJump)
 			jumps.append(linkedJump)
 		
-		starLog = StarLog(starLogJson['hash'], chain.id, height, len(request.data), starLogJson['log_header'], starLogJson['version'], starLogJson['previous_hash'], starLogJson['difficulty'], starLogJson['nonce'], starLogJson['time'], starLogJson['state_hash'], intervalId)
+		starLog = StarLog(starLogJson['hash'], chainIndex.id, height, len(request.data), starLogJson['log_header'], starLogJson['version'], starLogJson['previous_hash'], starLogJson['difficulty'], starLogJson['nonce'], starLogJson['time'], starLogJson['state_hash'], intervalId)
 		session.add(starLog)
 		session.commit()
+		chainIndex.star_log_id = starLog.id
 		chain.star_log_id = starLog.id
 		session.commit()
 	except:

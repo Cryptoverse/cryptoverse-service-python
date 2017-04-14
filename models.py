@@ -12,7 +12,7 @@ class StarLog(Base):
 
 	id = Column(Integer, primary_key=True)
 	hash = Column(String(64))
-	chain_id = Column(Integer)
+	chain_index_id = Column(Integer)
 	height = Column(Integer)
 	size = Column(Integer)
 	log_header = Column(String(255))
@@ -27,9 +27,9 @@ class StarLog(Base):
 	def __repr__(self):
 		return '<StarLog %r>' % self.hash
 
-	def __init__(self, hash, chain_id, height, size, log_header, version, previous_hash, difficulty, nonce, time, state_hash, interval_id):
+	def __init__(self, hash, chain_index_id, height, size, log_header, version, previous_hash, difficulty, nonce, time, state_hash, interval_id):
 		self.hash = hash
-		self.chain_id = chain_id
+		self.chain_index_id = chain_index_id
 		self.height = height
 		self.size = size
 		self.log_header = log_header
@@ -64,8 +64,8 @@ class StarLog(Base):
 			}
 		}
 
-class Chain(Base):
-	__tablename__ = 'chains'
+class ChainIndex(Base):
+	__tablename__ = 'chain_indices'
 	extend_existing=True
 
 	id = Column(Integer, primary_key=True)
@@ -79,7 +79,7 @@ class Chain(Base):
 	chain = Column(Integer)
 	
 	def __repr__(self):
-		return '<Chain %s>' % self.id
+		return '<Chain Index %s>' % self.id
 
 	def __init__(self, root_id, previous_id, star_log_id, previous_star_log_id, hash, previous_hash, height, chain):
 		self.root_id = root_id
@@ -96,6 +96,31 @@ class Chain(Base):
 			'hash': self.hash,
 			'previous_hash': self.previous_hash,
 			'height': self.height
+		}
+
+class Chain(Base):
+	__tablename__ = 'chains'
+	extend_existing=True
+
+	id = Column(Integer, primary_key=True)
+	height = Column(Integer)
+	head_index_id = Column(Integer)
+	chain = Column(Integer)
+	star_log_id = Column(Integer)
+	
+	def __repr__(self):
+		return '<Chain %s>' % self.id
+
+	def __init__(self, height, head_index_id, chain, star_log_id):
+		self.height = height
+		self.head_index_id = head_index_id
+		self.chain = chain
+		self.star_log_id = star_log_id
+
+	def getJson(self):
+		return {
+			'height': self.height,
+			'chain': self.chain
 		}
 
 class Fleet(Base):
