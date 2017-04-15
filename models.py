@@ -18,13 +18,13 @@ class StarLog(Base):
 	difficulty = Column(Integer)
 	nonce = Column(Integer)
 	time = Column(Integer)
-	state_hash = Column(String(64))
+	events_hash = Column(String(64))
 	interval_id = Column(Integer, ForeignKey('star_logs.id'))
 
 	def __repr__(self):
 		return '<StarLog %r>' % self.hash
 
-	def __init__(self, hash, chain_index_id, height, size, log_header, version, previous_hash, difficulty, nonce, time, state_hash, interval_id):
+	def __init__(self, hash, chain_index_id, height, size, log_header, version, previous_hash, difficulty, nonce, time, events_hash, interval_id):
 		self.hash = hash
 		self.chain_index_id = chain_index_id
 		self.height = height
@@ -35,14 +35,10 @@ class StarLog(Base):
 		self.difficulty = difficulty
 		self.nonce = nonce
 		self.time = time
-		self.state_hash = state_hash
+		self.events_hash = events_hash
 		self.interval_id = interval_id
 
-	def getJson(self, jumps=[]):
-		
-		starSystems = []
-		# TODO: Get Star Systems
-
+	def getJson(self, events=[]):
 		return {
 			'create_time': self.time,
 			'hash': self.hash,
@@ -53,11 +49,8 @@ class StarLog(Base):
 			'difficulty': self.difficulty,
 			'nonce': self.nonce,
 			'time': self.time,
-			'state_hash': self.state_hash,
-			'state': {
-				'jumps': jumps,
-				'star_systems': starSystems
-			}
+			'events_hash': self.state_hash,
+			'events': events
 		}
 
 class ChainIndex(Base):
@@ -138,66 +131,4 @@ class Fleet(Base):
 		return {
 			'hash': self.hash,
 			'public_key': self.public_key
-		}
-
-class Jump(Base):
-	__tablename__ = 'jumps'
-	extend_existing=True
-
-	id = Column(Integer, primary_key=True)
-	fleet_id = Column(Integer, ForeignKey('fleets.id'))
-	origin_id = Column(Integer, ForeignKey('star_logs.id'))
-	destination_id = Column(Integer, ForeignKey('star_logs.id'))
-	key = Column(String(64))
-	count = Column(Integer)
-	lost_count = Column(Integer)
-	signature = Column(String(255))
-	
-	def __repr__(self):
-		return '<Jump %r>' % self.id
-
-	def __init__(self, fleet_id, origin_id, destination_id, key, count, lost_count, signature):
-		self.fleet_id = fleet_id
-		self.origin_id = origin_id
-		self.destination_id = destination_id
-		self.key = key
-		self.count = count
-		self.lost_count = lost_count
-		self.signature = signature
-
-	def getJson(self, fleet_hash=None, fleet_key=None, origin=None, destination=None):
-		# TODO: Include the create time...
-		create_time = None
-
-		return {
-			'fleet_hash': fleet_hash,
-			'fleet_key': fleet_key,
-			'key': self.key,
-			'origin': origin,
-			'destination': destination,
-			'count': self.count,
-			'lost_count': self.lost_count,
-			'signature': self.signature
-		}
-
-class StarLogJump(Base):
-	__tablename__ = 'star_log_jumps'
-	extend_existing=True
-
-	id = Column(Integer, primary_key=True)
-	jump_id = Column(Integer)
-	star_log_id = Column(Integer)
-	index = Column(Integer)
-	
-	def __repr__(self):
-		return '<Starlog Jumps %s>' % self.id
-
-	def __init__(self, jump_id, star_log_id, index):
-		self.jump_id = jump_id
-		self.star_log_id = star_log_id
-		self.index = index
-
-	def getJson(self):
-		return {
-			'index': self.index
 		}

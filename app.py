@@ -18,7 +18,7 @@ CORS(app)
 import util
 import validate
 from tasks import tasker
-from models import StarLog, Fleet, Jump, StarLogJump, Chain, ChainIndex
+from models import StarLog, Fleet, Chain, ChainIndex
 
 @app.before_first_request
 def setupLogging():
@@ -204,59 +204,16 @@ def postStarLogs():
 		elif starLogJson['difficulty'] != previousStarLog.difficulty:
 			raise ValueError('difficulty does not match previous difficulty')
 
-		for fleet in util.getFleets(starLogJson['state']):
+		for fleet in util.getFleets(starLogJson['events']):
 			fleetHash, fleetPublicKey = fleet
 			if session.query(Fleet).filter_by(hash=fleetHash).first() is None:
 				session.add(Fleet(fleetHash, fleetPublicKey))
 		
-		jumps = []
-		for currentJump in starLogJson['state']['jumps']:
-			jump = session.query(Jump).filter_by(key=currentJump['key']).first()
-			if jump is None:
-				originHash = currentJump['origin']
-				destinationHash = currentJump['destination']
-
-				fleet = session.query(Fleet).filter_by(hash=currentJump['fleet_hash']).first()
-				origin = session.query(StarLog).filter_by(hash=originHash).first() if originHash else None
-				destination = session.query(StarLog).filter_by(hash=destinationHash).first() if destinationHash else None
-
-				if fleet:
-					fleet = fleet.id
-				if origin:
-					origin = origin.id
-				if destination:
-					destination = destination.id
-				
-				jump = Jump(fleet, origin, destination, currentJump['key'], currentJump['count'], currentJump['lost_count'], currentJump['signature'])
-				session.add(jump)
-			jumps.append(jump)
-		
-		if not isGenesis:
-			allSystems = util.getSystems(starLogJson['state'])
-			previousJumps = session.query(StarLogJump).filter_by(star_log_id=previousStarLogId).all()
-			for previousJump in previousJumps:
-				jump = session.query(Jump).filter_by(id=previousJump.jump_id).first()
-				if jump.origin_id:
-					originSystem = session.query(StarLog).filter_by(id=jump.origin_id).first()
-					if originSystem.hash not in allSystems:
-						raise ValueError('origin system %s was not found in state.star_systems' % originSystem.hash)
-				destinationId = previousStarLogId if jump.destination_id is None else jump.destination_id
-				destinationSystem = session.query(StarLog).filter_by(id=destinationId).first()
-				if destinationSystem.hash not in allSystems:
-					raise ValueError('destination system %s was not found in state.star_systems' % destinationSystem.hash)
-
-		starLog = StarLog(starLogJson['hash'], chainIndex.id, height, len(request.data), starLogJson['log_header'], starLogJson['version'], starLogJson['previous_hash'], starLogJson['difficulty'], starLogJson['nonce'], starLogJson['time'], starLogJson['state_hash'], intervalId)
+		starLog = StarLog(starLogJson['hash'], chainIndex.id, height, len(request.data), starLogJson['log_header'], starLogJson['version'], starLogJson['previous_hash'], starLogJson['difficulty'], starLogJson['nonce'], starLogJson['time'], starLogJson['events_hash'], intervalId)
 		session.add(starLog)
 		session.commit()
 		chainIndex.star_log_id = starLog.id
 		chain.star_log_id = starLog.id
-
-		jumpIndex = 0
-		for currentJump in jumps:
-			starLogJump = StarLogJump(currentJump.id, starLog.id, jumpIndex)
-			session.add(starLogJump)
-			jumpIndex += 1
-
 		session.commit()
 	except:
 		session.rollback()
