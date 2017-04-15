@@ -76,22 +76,23 @@ def getChains():
 		result = []
 		for match in matches:
 			# TODO: Make this code better by figuring out joins and such.
-			jumpMatches = session.query(StarLogJump).filter_by(star_log_id=match.id).all()
-			jumps = []
-			for jumpMatch in jumpMatches:
-				jump = session.query(Jump).filter_by(id=jumpMatch.jump_id).first()
-				origin = session.query(StarLog).filter_by(id=jump.origin_id).first()
-				destination = session.query(StarLog).filter_by(id=jump.destination_id).first()
-				fleet = session.query(Fleet).filter_by(id=jump.fleet_id).first()
-				origin = None if origin is None else origin.hash
-				destination = None if destination is None else destination.hash
-				fleetHash = None
-				fleetKey = None
-				if fleet is not None:
-					fleetHash = fleet.hash
-					fleetKey = fleet.public_key
-				jumps.append(jump.getJson(fleetHash, fleetKey, origin, destination))
-			result.append(match.getJson(jumps))
+			result = []
+			# jumpMatches = session.query(StarLogJump).filter_by(star_log_id=match.id).all()
+			# jumps = []
+			# for jumpMatch in jumpMatches:
+			# 	jump = session.query(Jump).filter_by(id=jumpMatch.jump_id).first()
+			# 	origin = session.query(StarLog).filter_by(id=jump.origin_id).first()
+			# 	destination = session.query(StarLog).filter_by(id=jump.destination_id).first()
+			# 	fleet = session.query(Fleet).filter_by(id=jump.fleet_id).first()
+			# 	origin = None if origin is None else origin.hash
+			# 	destination = None if destination is None else destination.hash
+			# 	fleetHash = None
+			# 	fleetKey = None
+			# 	if fleet is not None:
+			# 		fleetHash = fleet.hash
+			# 		fleetKey = fleet.public_key
+			# 	jumps.append(jump.getJson(fleetHash, fleetKey, origin, destination))
+			# result.append(match.getJson(jumps))
 		return json.dumps(result)
 	finally:
 		session.close()
