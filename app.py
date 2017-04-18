@@ -18,7 +18,7 @@ CORS(app)
 import util
 import validate
 from tasks import tasker
-from models import StarLog, Fleet, Chain, ChainIndex
+from models import StarLog, Fleet, Chain, ChainIndex, Event
 
 @app.before_first_request
 def setupLogging():
@@ -210,11 +210,37 @@ def postStarLogs():
 			if session.query(Fleet).filter_by(hash=fleetHash).first() is None:
 				session.add(Fleet(fleetHash, fleetPublicKey))
 		
+		# rewardOutput = {
+		# 	'type': 'result',
+		# 	'fleet_hash': util.sha256(accountInfo['public_key']),
+		# 	'key': util.sha256('%s%s' % (util.getTime(), accountInfo['public_key'])),
+		# 	'star_system': None,
+		# 	'count': util.shipReward,
+		# }
+
+		outputEvents = util.getEventOutputs(starLogJson['events'])
+
+		# Some events output to the currently probed system, so we keep track of them in this list so we can assign their Ids later.
+		eventsInProbedSystem = []
+
+		for currentOutput in outputEvents:
+			if session.query(Event).filter_by(key=currentOutput['key']).first() is None:
+				fleet = session.query(Fleet).filter_by(hash=currentOutput['fleet_hash']).first()
+				systemHash = currentOutput['star_system']
+				system = None if systemHash is None else session.qurey(StarLog).filter_by(hash=systemHash).first()
+				systemId = None if system is None else system.id
+				currentEvent = Event(currentOutput['key'], None, util.getEventTypeId(currentOutput['type']), fleet.id, currentOutput['count'], systemId)
+				session.add(currentEvent)
+				if systemHash is None:
+					eventsInProbedSystem.append(currentEvent)
+
 		starLog = StarLog(starLogJson['hash'], chainIndex.id, height, len(request.data), starLogJson['log_header'], starLogJson['version'], starLogJson['previous_hash'], starLogJson['difficulty'], starLogJson['nonce'], starLogJson['time'], starLogJson['events_hash'], intervalId)
 		session.add(starLog)
 		session.commit()
 		chainIndex.star_log_id = starLog.id
 		chain.star_log_id = starLog.id
+		for currentEvent in eventsInProbedSystem:
+			currentEvent.star_log_id = starLog.id
 		session.commit()
 	except:
 		session.rollback()

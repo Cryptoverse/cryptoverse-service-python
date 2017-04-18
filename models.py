@@ -132,3 +132,31 @@ class Fleet(Base):
 			'hash': self.hash,
 			'public_key': self.public_key
 		}
+
+class Event(Base):
+	__tablename__ = 'events'
+	extend_existing=True
+
+	id = Column(Integer, primary_key=True)
+	key = Column(String(64))
+	signature = Column(String(512))
+	event_type_id = Column(Integer)
+	fleet_id = Column(Integer, ForeignKey('fleets.id'))
+	count = Column(Integer)
+	star_log_id = Column(Integer, ForeignKey('star_logs.id'))
+	
+	def __repr__(self):
+		return '<Event %s>' % self.id
+
+	def __init__(self, key, signature, event_type_id, fleet_id, count, star_log_id):
+		self.key = key
+		self.signature = signature
+		self.event_type_id = event_type_id
+		self.fleet_id = fleet_id
+		self.count = count
+		self.star_log_id = star_log_id
+
+	def getJson(self):
+		return {
+			'key': self.key
+		}
