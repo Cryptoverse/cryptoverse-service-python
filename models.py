@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
+import util
 
 Base = declarative_base()
 
@@ -38,7 +39,7 @@ class StarLog(Base):
 		self.events_hash = events_hash
 		self.interval_id = interval_id
 
-	def getJson(self, events=[]):
+	def getJson(self, events):
 		return {
 			'create_time': self.time,
 			'hash': self.hash,
@@ -49,7 +50,7 @@ class StarLog(Base):
 			'difficulty': self.difficulty,
 			'nonce': self.nonce,
 			'time': self.time,
-			'events_hash': self.state_hash,
+			'events_hash': self.events_hash,
 			'events': events
 		}
 
@@ -138,25 +139,107 @@ class Event(Base):
 	extend_existing=True
 
 	id = Column(Integer, primary_key=True)
-	key = Column(String(64))
-	signature = Column(String(512))
-	event_type_id = Column(Integer)
+	type_id = Column(Integer)
 	fleet_id = Column(Integer, ForeignKey('fleets.id'))
+	key = Column(String(64))
 	count = Column(Integer)
+	star_system_id = Column(Integer, ForeignKey('star_logs.id'))
 	star_log_id = Column(Integer, ForeignKey('star_logs.id'))
 	
 	def __repr__(self):
 		return '<Event %s>' % self.id
 
-	def __init__(self, key, signature, event_type_id, fleet_id, count, star_log_id):
+	def __init__(self, key, event_type_id, fleet_id, count, star_log_id, star_system_id):
 		self.key = key
-		self.signature = signature
 		self.event_type_id = event_type_id
 		self.fleet_id = fleet_id
 		self.count = count
 		self.star_log_id = star_log_id
+		self.star_system_id = star_system_id
+
+	def getJson(self):
+		return { 'key': self.key }
+
+class EventSignature(Base):
+	__tablename__ = 'event_signatures'
+	extend_existing=True
+
+	id = Column(Integer, primary_key=True)
+	type_id = Column(Integer)
+	fleet_id = Column(Integer, ForeignKey('fleets.id'))
+	hash = Column(String(64))
+	signature = Column(String(512))
+	star_log_id = Column(Integer, ForeignKey('star_logs.id'))
+
+	def __repr__(self):
+		return '<Event Signature %s>' % self.id
+
+	def __init__(self, type_id, fleet_id, hash, signature, star_log_id):
+		self.type_id = type_id
+		self.fleet_id = fleet_id
+		self.hash = hash
+		self.signature = signature
+		self.star_log_id = star_log_id
+
+	def getJson(self, fleetHash, fleetKey, inputs, outputs):
+		return {
+			'type': util.getEventTypeName(self.event_type_id),
+			'fleet_hash': fleetHash,
+			'fleet_key': fleetKey,
+			'inputs': inputs,
+			'outputs': outputs
+		}
+
+class EventInput(Base):
+	__tablename__ = 'event_inputs'
+	extend_existing=True
+
+	id = Column(Integer, primary_key=True)
+	event_id = Column(Integer, ForeignKey('fleets.id'))
+	event_signature_id = Column(Integer, ForeignKey('event_signatures.id'))
+	index = Column(Integer)
+	star_log_id = Column(Integer, ForeignKey('star_logs.id'))
+
+	def __repr__(self):
+		return '<Event %s>' % self.id
+
+	def __init__(self, event_id, event_signature_id, index, star_log_id):
+		self.event_id = event_id
+		self.event_signature_id = event_signature_id
+		self.index = index
+		self.star_log_id = star_log_id
 
 	def getJson(self):
 		return {
+			'index': self.index,
 			'key': self.key
+		}
+
+class EventOutput(Base):
+	__tablename__ = 'event_outputs'
+	extend_existing=True
+
+	id = Column(Integer, primary_key=True)
+	event_id = Column(Integer, ForeignKey('fleets.id'))
+	event_signature_id = Column(Integer, ForeignKey('event_signatures.id'))
+	index = Column(Integer)
+	star_log_id = Column(Integer, ForeignKey('star_logs.id'))
+
+	def __repr__(self):
+		return '<Event %s>' % self.id
+
+	def __init__(self, event_id, event_signature_id, index, star_log_id):
+		self.event_id = event_id
+		self.event_signature_id = event_signature_id
+		self.index = index
+		self.star_log_id = star_log_id
+
+	def getJson(self, typeName, fleetHash, key, starSystem, count):
+		return { 
+			'index': self.index,
+			'type': typeName,
+			'fleet_hash': fleetHash,
+			'key': key,
+			'star_system': starSystem,
+			'count': count
 		}

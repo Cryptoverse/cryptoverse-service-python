@@ -18,7 +18,7 @@ CORS(app)
 import util
 import validate
 from tasks import tasker
-from models import StarLog, Fleet, Chain, ChainIndex, Event
+from models import StarLog, Fleet, Chain, ChainIndex, Event, EventSignature, EventInput, EventOutput
 
 @app.before_first_request
 def setupLogging():
@@ -73,10 +73,48 @@ def getChains():
 			raise ValueError('limit greater than maximum allowed')
 		query = query.limit(limit)
 		matches = query.all()
-		result = []
+		results = []
+
+#  {
+#             "fleet_hash": "32af95310de02a33911a1c0d3e1a83a440b7710ee55db25deaa8ce56f783712f",
+#             "fleet_key": "MIIBIjANBg...",
+#             "inputs": [],
+#             "outputs": [
+#                 {
+#                     "count": 10,
+#                     "fleet_hash": "32af95310de02a33911a1c0d3e1a83a440b7710ee55db25deaa8ce56f783712f",
+#                     "key": "a1b31282ceb9b6bf8503d6db0b1599f70b755918137c8bf96f651e0c79d8bf68",
+#                     "star_system": null,
+#                     "type": "reward"
+#                 }
+#             ],
+#             "signature": "b07ba9acb800e...",
+#             "type": "reward"
+#         }
+
 		for match in matches:
+			eventMatches = session.query(Event).filter_by(star_log_id=match.id).all()
+			events = []
+			for eventMatch in eventMatches:
+				fleet = session.query(Fleet).filter_by(id=eventMatch.fleet_id).first()
+				inputEvents = session.query(EventInput).filter_by(star_log_id=match.id).all()
+				outputEvents = session.query(EventOutput).filter_by(star_log_id=match.id).all()
+
+				inputs = []
+				for currentInput in inputEvents:
+					currentInputEvent = session.query(Event).filter_by(id=currentInput.event_id).first()
+					inputs.append(currentInput.getJson(currentInputEvent.key))
+				
+				outputs = []
+				for currentOutput in outputEvents:
+					currentOutputEvent = session.query(Event).filter_by(id=currentOutput.event_id).first()
+					outputFleet = session.query(Fleet).filter_by(id=currentOutputEvent.fleet_id).first()
+					outputStarSystem = session.query(StarLog).filter_by(id=currentOutputEvent.star_system_id).first()
+					outputs.append(currentOutput.getJson(util.getEventTypeName(currentOutputEvent.event_type_id), outputFleet.hash, currentOutputEvent.key, outputStarSystem.hash, currentOutputEvent.count))
+				events.append(eventMatch.getJson(fleet.hash, fleet.public_key, inputs, outputs))
+			results.append(match.getJson(events))
+
 			# TODO: Make this code better by figuring out joins and such.
-			result = []
 			# jumpMatches = session.query(StarLogJump).filter_by(star_log_id=match.id).all()
 			# jumps = []
 			# for jumpMatch in jumpMatches:
@@ -93,7 +131,7 @@ def getChains():
 			# 		fleetKey = fleet.public_key
 			# 	jumps.append(jump.getJson(fleetHash, fleetKey, origin, destination))
 			# result.append(match.getJson(jumps))
-		return json.dumps(result)
+		return json.dumps(results)
 	finally:
 		session.close()
 
@@ -184,6 +222,9 @@ def postStarLogs():
 		session.commit()
 		chain.head_index_id = chainIndex.id
 
+		needsStarLogIds = [chainIndex, chain]
+		needsStarSystemIds = []
+
 		previousStarLog = None if previousStarLogId is None else session.query(StarLog).filter_by(id=previousStarLogId).first()
 
 		# If the previous StarLog has no interval_id, that means we recalculated difficulty on it.
@@ -205,42 +246,56 @@ def postStarLogs():
 		elif starLogJson['difficulty'] != previousStarLog.difficulty:
 			raise ValueError('difficulty does not match previous difficulty')
 
+		fleetsAdded = False
 		for fleet in util.getFleets(starLogJson['events']):
 			fleetHash, fleetPublicKey = fleet
 			if session.query(Fleet).filter_by(hash=fleetHash).first() is None:
 				session.add(Fleet(fleetHash, fleetPublicKey))
+				fleetsAdded = True
 		
-		# rewardOutput = {
-		# 	'type': 'result',
-		# 	'fleet_hash': util.sha256(accountInfo['public_key']),
-		# 	'key': util.sha256('%s%s' % (util.getTime(), accountInfo['public_key'])),
-		# 	'star_system': None,
-		# 	'count': util.shipReward,
-		# }
+		if fleetsAdded:
+			session.commit()
 
-		outputEvents = util.getEventOutputs(starLogJson['events'])
-
-		# Some events output to the currently probed system, so we keep track of them in this list so we can assign their Ids later.
-		eventsInProbedSystem = []
-
-		for currentOutput in outputEvents:
-			if session.query(Event).filter_by(key=currentOutput['key']).first() is None:
-				fleet = session.query(Fleet).filter_by(hash=currentOutput['fleet_hash']).first()
-				systemHash = currentOutput['star_system']
-				system = None if systemHash is None else session.qurey(StarLog).filter_by(hash=systemHash).first()
-				systemId = None if system is None else system.id
-				currentEvent = Event(currentOutput['key'], None, util.getEventTypeId(currentOutput['type']), fleet.id, currentOutput['count'], systemId)
-				session.add(currentEvent)
-				if systemHash is None:
-					eventsInProbedSystem.append(currentEvent)
+		for currentEvent in starLogJson['events']:
+			if session.query(EventSignature).filter_by(hash=currentEvent['hash']).first():
+				continue
+			fleet = session.query(Fleet).filter_by(hash=currentEvent['fleet_hash']).first()
+			eventSignature = EventSignature(util.getEventTypeId(currentEvent['type']), fleet.id, currentEvent['hash'], currentEvent['signature'], None)
+			session.add(eventSignature)
+			session.commit()
+			needsStarLogIds.append(eventSignature)
+			for currentInput in currentEvent['inputs']:
+				targetInput = session.query(Event).filter_by(key=currentInput['key']).first()
+				if targetInput is None:
+					raise Exception('event %s is not accounted for' % currentInput['key'])
+				eventInput = EventInput(targetInput.id, eventSignature.id, currentInput['index'], None)
+				session.add(eventInput)
+				needsStarLogIds.append(eventInput)
+			for currentOutput in currentEvent['outputs']:
+				targetOutput = session.query(Event).filter_by(key=currentOutput['key']).first()
+				if targetOutput is None:
+					outputFleet = session.query(Fleet).filter_by(hash=currentOutput['fleet_hash']).first()
+					if outputFleet is None:
+						outputFleet = Fleet(currentOutput['fleet_hash'], None)
+						session.add(outputFleet)
+						session.commit()
+					targetStarSystem = currentOutput['star_system']
+					targetOutput = Event(currentOutput['key'], util.getEventTypeId(currentOutput['type']), outputFleet.id, currentOutput['count'], None, targetStarSystem)
+					session.add(targetOutput)
+					needsStarLogIds.append(targetOutput)
+					if targetStarSystem is None:
+						needsStarSystemIds.append(targetOutput)
+				eventOutput = EventOutput(targetOutput.id, eventSignature.id, currentOutput['index'], None)
+				session.add(eventOutput)
+				needsStarLogIds.append(eventOutput)
 
 		starLog = StarLog(starLogJson['hash'], chainIndex.id, height, len(request.data), starLogJson['log_header'], starLogJson['version'], starLogJson['previous_hash'], starLogJson['difficulty'], starLogJson['nonce'], starLogJson['time'], starLogJson['events_hash'], intervalId)
 		session.add(starLog)
 		session.commit()
-		chainIndex.star_log_id = starLog.id
-		chain.star_log_id = starLog.id
-		for currentEvent in eventsInProbedSystem:
-			currentEvent.star_log_id = starLog.id
+		for entry in needsStarLogIds:
+			entry.star_log_id = starLog.id
+		for entry in needsStarSystemIds:
+			entry.star_system_id = starLog.id
 		session.commit()
 	except:
 		session.rollback()
