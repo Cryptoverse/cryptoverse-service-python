@@ -179,7 +179,7 @@ class EventSignature(Base):
 
 	def getJson(self, fleetHash, fleetKey, inputs, outputs):
 		return {
-			'type': util.getEventTypeName(self.event_type_id),
+			'type': util.getEventTypeName(self.type_id),
 			'fleet_hash': fleetHash,
 			'fleet_key': fleetKey,
 			'inputs': inputs,

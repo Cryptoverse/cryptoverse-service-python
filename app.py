@@ -93,12 +93,13 @@ def getChains():
 #         }
 
 		for match in matches:
-			eventMatches = session.query(Event).filter_by(star_log_id=match.id).all()
+			signatureBinds = session.query(StarLogEventSignature).filter_by(star_log_id=match.id).all()
 			events = []
-			for eventMatch in eventMatches:
-				fleet = session.query(Fleet).filter_by(id=eventMatch.fleet_id).first()
-				inputEvents = session.query(EventInput).filter_by(star_log_id=match.id).all()
-				outputEvents = session.query(EventOutput).filter_by(star_log_id=match.id).all()
+			for signatureBind in signatureBinds:
+				signatureMatch = session.query(EventSignature).filter_by(id=signatureBind.event_signature_id).first()
+				fleet = session.query(Fleet).filter_by(id=signatureMatch.fleet_id).first()
+				inputEvents = session.query(EventInput).filter_by(event_signature_id=signatureMatch.id).all()
+				outputEvents = session.query(EventOutput).filter_by(event_signature_id=signatureMatch.id).all()
 
 				inputs = []
 				for currentInput in inputEvents:
@@ -110,8 +111,8 @@ def getChains():
 					currentOutputEvent = session.query(Event).filter_by(id=currentOutput.event_id).first()
 					outputFleet = session.query(Fleet).filter_by(id=currentOutputEvent.fleet_id).first()
 					outputStarSystem = session.query(StarLog).filter_by(id=currentOutputEvent.star_system_id).first()
-					outputs.append(currentOutput.getJson(util.getEventTypeName(currentOutputEvent.event_type_id), outputFleet.hash, currentOutputEvent.key, outputStarSystem.hash, currentOutputEvent.count))
-				events.append(eventMatch.getJson(fleet.hash, fleet.public_key, inputs, outputs))
+					outputs.append(currentOutput.getJson(util.getEventTypeName(currentOutputEvent.type_id), outputFleet.hash, currentOutputEvent.key, outputStarSystem.hash, currentOutputEvent.count))
+				events.append(signatureMatch.getJson(fleet.hash, fleet.public_key, inputs, outputs))
 			results.append(match.getJson(events))
 
 			# TODO: Make this code better by figuring out joins and such.
@@ -269,7 +270,7 @@ def postStarLogs():
 			session.commit()
 			eventSignatureBind = StarLogEventSignature(eventSignature.id, None, currentEvent['index'])
 			session.add(eventSignatureBind)
-			needsStarSystemIds.append(eventSignatureBind)
+			needsStarLogIds.append(eventSignatureBind)
 
 			for currentInput in currentEvent['inputs']:
 				targetInput = session.query(Event).filter_by(key=currentInput['key']).first()

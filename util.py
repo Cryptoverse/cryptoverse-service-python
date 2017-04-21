@@ -358,7 +358,7 @@ def getEventTypeName(eventId):
 	Returns:
 		str: Str of the event type.
 	'''
-	return eventTypes[eventId] if eventId < len(eventTypes) else eventTypes[0]
+	return eventTypes[eventId] if eventId is not None and eventId < len(eventTypes) else eventTypes[0]
 
 def getTime():
 	'''UTC time in seconds.
