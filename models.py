@@ -144,17 +144,15 @@ class Event(Base):
 	key = Column(String(64))
 	count = Column(Integer)
 	star_system_id = Column(Integer, ForeignKey('star_logs.id'))
-	star_log_id = Column(Integer, ForeignKey('star_logs.id'))
 	
 	def __repr__(self):
 		return '<Event %s>' % self.id
 
-	def __init__(self, key, event_type_id, fleet_id, count, star_log_id, star_system_id):
+	def __init__(self, key, event_type_id, fleet_id, count, star_system_id):
 		self.key = key
 		self.event_type_id = event_type_id
 		self.fleet_id = fleet_id
 		self.count = count
-		self.star_log_id = star_log_id
 		self.star_system_id = star_system_id
 
 	def getJson(self):
@@ -169,17 +167,15 @@ class EventSignature(Base):
 	fleet_id = Column(Integer, ForeignKey('fleets.id'))
 	hash = Column(String(64))
 	signature = Column(String(512))
-	star_log_id = Column(Integer, ForeignKey('star_logs.id'))
 
 	def __repr__(self):
 		return '<Event Signature %s>' % self.id
 
-	def __init__(self, type_id, fleet_id, hash, signature, star_log_id):
+	def __init__(self, type_id, fleet_id, hash, signature):
 		self.type_id = type_id
 		self.fleet_id = fleet_id
 		self.hash = hash
 		self.signature = signature
-		self.star_log_id = star_log_id
 
 	def getJson(self, fleetHash, fleetKey, inputs, outputs):
 		return {
@@ -195,19 +191,17 @@ class EventInput(Base):
 	extend_existing=True
 
 	id = Column(Integer, primary_key=True)
-	event_id = Column(Integer, ForeignKey('fleets.id'))
+	event_id = Column(Integer, ForeignKey('events.id'))
 	event_signature_id = Column(Integer, ForeignKey('event_signatures.id'))
 	index = Column(Integer)
-	star_log_id = Column(Integer, ForeignKey('star_logs.id'))
 
 	def __repr__(self):
 		return '<Event %s>' % self.id
 
-	def __init__(self, event_id, event_signature_id, index, star_log_id):
+	def __init__(self, event_id, event_signature_id, index):
 		self.event_id = event_id
 		self.event_signature_id = event_signature_id
 		self.index = index
-		self.star_log_id = star_log_id
 
 	def getJson(self):
 		return {
@@ -220,19 +214,17 @@ class EventOutput(Base):
 	extend_existing=True
 
 	id = Column(Integer, primary_key=True)
-	event_id = Column(Integer, ForeignKey('fleets.id'))
+	event_id = Column(Integer, ForeignKey('events.id'))
 	event_signature_id = Column(Integer, ForeignKey('event_signatures.id'))
 	index = Column(Integer)
-	star_log_id = Column(Integer, ForeignKey('star_logs.id'))
 
 	def __repr__(self):
 		return '<Event %s>' % self.id
 
-	def __init__(self, event_id, event_signature_id, index, star_log_id):
+	def __init__(self, event_id, event_signature_id, index):
 		self.event_id = event_id
 		self.event_signature_id = event_signature_id
 		self.index = index
-		self.star_log_id = star_log_id
 
 	def getJson(self, typeName, fleetHash, key, starSystem, count):
 		return { 
@@ -243,3 +235,23 @@ class EventOutput(Base):
 			'star_system': starSystem,
 			'count': count
 		}
+
+class StarLogEventSignature(Base):
+	__tablename__ = 'star_log_event_signatures'
+	extend_existing=True
+
+	id = Column(Integer, primary_key=True)
+	event_signature_id = Column(Integer, ForeignKey('event_signatures.id'))
+	star_log_id = Column(Integer, ForeignKey('star_logs.id'))
+	index = Column(Integer)
+
+	def __repr__(self):
+		return '<Starlog Event Signature %s>' % self.id
+
+	def __init__(self, event_signature_id, star_log_id, index):
+		self.event_signature_id = event_signature_id
+		self.star_log_id = star_log_id
+		self.index = index
+
+	def getJson(self):
+		return {}

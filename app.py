@@ -18,7 +18,7 @@ CORS(app)
 import util
 import validate
 from tasks import tasker
-from models import StarLog, Fleet, Chain, ChainIndex, Event, EventSignature, EventInput, EventOutput
+from models import StarLog, Fleet, Chain, ChainIndex, Event, EventSignature, EventInput, EventOutput, StarLogEventSignature
 
 @app.before_first_request
 def setupLogging():
@@ -257,20 +257,26 @@ def postStarLogs():
 			session.commit()
 
 		for currentEvent in starLogJson['events']:
-			if session.query(EventSignature).filter_by(hash=currentEvent['hash']).first():
+			existingSignature = session.query(EventSignature).filter_by(hash=currentEvent['hash']).first()
+			if existingSignature:
+				additionalSignatureBind = StarLogEventSignature(existingSignature.id, None, currentEvent['index'])
+				session.add(additionalSignatureBind)
+				needsStarLogIds.append(additionalSignatureBind)
 				continue
 			fleet = session.query(Fleet).filter_by(hash=currentEvent['fleet_hash']).first()
-			eventSignature = EventSignature(util.getEventTypeId(currentEvent['type']), fleet.id, currentEvent['hash'], currentEvent['signature'], None)
+			eventSignature = EventSignature(util.getEventTypeId(currentEvent['type']), fleet.id, currentEvent['hash'], currentEvent['signature'])
 			session.add(eventSignature)
 			session.commit()
-			needsStarLogIds.append(eventSignature)
+			eventSignatureBind = StarLogEventSignature(eventSignature.id, None, currentEvent['index'])
+			session.add(eventSignatureBind)
+			needsStarSystemIds.append(eventSignatureBind)
+
 			for currentInput in currentEvent['inputs']:
 				targetInput = session.query(Event).filter_by(key=currentInput['key']).first()
 				if targetInput is None:
 					raise Exception('event %s is not accounted for' % currentInput['key'])
-				eventInput = EventInput(targetInput.id, eventSignature.id, currentInput['index'], None)
+				eventInput = EventInput(targetInput.id, eventSignature.id, currentInput['index'])
 				session.add(eventInput)
-				needsStarLogIds.append(eventInput)
 			for currentOutput in currentEvent['outputs']:
 				targetOutput = session.query(Event).filter_by(key=currentOutput['key']).first()
 				if targetOutput is None:
@@ -279,15 +285,19 @@ def postStarLogs():
 						outputFleet = Fleet(currentOutput['fleet_hash'], None)
 						session.add(outputFleet)
 						session.commit()
-					targetStarSystem = currentOutput['star_system']
-					targetOutput = Event(currentOutput['key'], util.getEventTypeId(currentOutput['type']), outputFleet.id, currentOutput['count'], None, targetStarSystem)
+					targetStarSystemId = None
+					if currentOutput['star_system']:
+						targetStarSystem = session.query(StarLog).filter_by(hash=currentOutput['star_system']).first()
+						if targetStarSystem is None:
+							raise Exception('star system %s is not accounted for' % currentOutput['star_system'])
+						targetStarSystemId = targetStarSystem.id
+					targetOutput = Event(currentOutput['key'], util.getEventTypeId(currentOutput['type']), outputFleet.id, currentOutput['count'], targetStarSystemId)
 					session.add(targetOutput)
-					needsStarLogIds.append(targetOutput)
-					if targetStarSystem is None:
+					session.commit()
+					if targetStarSystemId is None:
 						needsStarSystemIds.append(targetOutput)
-				eventOutput = EventOutput(targetOutput.id, eventSignature.id, currentOutput['index'], None)
+				eventOutput = EventOutput(targetOutput.id, eventSignature.id, currentOutput['index'])
 				session.add(eventOutput)
-				needsStarLogIds.append(eventOutput)
 
 		starLog = StarLog(starLogJson['hash'], chainIndex.id, height, len(request.data), starLogJson['log_header'], starLogJson['version'], starLogJson['previous_hash'], starLogJson['difficulty'], starLogJson['nonce'], starLogJson['time'], starLogJson['events_hash'], intervalId)
 		session.add(starLog)
