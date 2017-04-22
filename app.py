@@ -108,6 +108,7 @@ def getChains():
 
 @app.route('/star-logs')
 def getStarLogs():
+	# TODO: Surround with try/catch.
 	previousHash = request.args.get('previous_hash', None, type=str)
 	beforeTime = request.args.get('before_time', None, type=int)
 	sinceTime = request.args.get('since_time', None, type=int)
@@ -139,7 +140,7 @@ def getStarLogs():
 def postStarLogs():
 	session = database.session()
 	try:
-		validate.byteSize(999999, request.data)
+		validate.byteSize(util.maximumStarLogSize, request.data)
 		starLogJson = json.loads(request.data)
 		validate.starLog(starLogJson)
 
@@ -235,7 +236,7 @@ def postStarLogs():
 				needsStarLogIds.append(additionalSignatureBind)
 				continue
 			fleet = session.query(Fleet).filter_by(hash=currentEvent['fleet_hash']).first()
-			eventSignature = EventSignature(util.getEventTypeId(currentEvent['type']), fleet.id, currentEvent['hash'], currentEvent['signature'], util.getTime())
+			eventSignature = EventSignature(util.getEventTypeId(currentEvent['type']), fleet.id, currentEvent['hash'], currentEvent['signature'], util.getTime(), 1)
 			session.add(eventSignature)
 			session.commit()
 			eventSignatureBind = StarLogEventSignature(eventSignature.id, None, currentEvent['index'])
@@ -295,6 +296,7 @@ def getEvents():
 			raise ValueError('limit greater than maximum allowed')
 
 		# Don't get reward event signatures, since they'll always be associated with an existing block.
+		# TODO: Order by confirmation counts, less confirmations should appear first.
 		signatures = session.query(EventSignature).order_by(EventSignature.time.desc()).filter(EventSignature.type_id != util.getEventTypeId('reward')).limit(limit)
 		results = []
 
@@ -320,7 +322,52 @@ def getEvents():
 
 @app.route('/events', methods=['POST'])
 def postEvents():
-	return 200
+	session = database.session()
+	try:
+		validate.byteSize(util.maximumEventSize, request.data)
+		eventJson = json.loads(request.data)
+		validate.event(eventJson, False, True, False)
+
+		if session.query(EventSignature).filter_by(hash=eventJson['hash']).first():
+			raise Exception('event with hash %s already exists' % eventJson['hash'])
+
+		fleet = session.query(Fleet).filter_by(hash=eventJson['fleet_hash']).first()
+
+		eventSignature = EventSignature(util.getEventTypeId(eventJson['type']), fleet.id, eventJson['hash'], eventJson['signature'], util.getTime(), 0)
+		session.add(eventSignature)
+		session.commit()
+
+		usedInputs = []
+		
+		for currentInput in eventJson['inputs']:
+			inputEvent = session.query(Event).filter_by(key=currentInput['key']).first()
+			if inputEvent is None:
+				raise Exception('event with key %s not accounted for' % currentInput['key'])
+		for currentOutput in eventJson['outputs']:
+			targetOutput = session.query(Event).filter_by(key=currentOutput['key']).first()
+			if targetOutput is not None:
+				outputFleet = session.query(Fleet).filter_by(hash=currentOutput['fleet_hash']).first()
+				if outputFleet is None:
+					outputFleet = Fleet(currentOutput['fleet_hash'], None)
+					session.add(outputFleet)
+					session.commit()
+				targetStarSystem = session.query(StarLog).filter_by(hash=currentOutput['star_system']).first()
+				if targetStarSystem is None:
+					raise Exception('star system %s is not accounted for' % currentOutput['star_system'])
+				
+				targetOutput = Event(currentOutput['key'], util.getEventTypeId(currentOutput['type']), outputFleet.id, currentOutput['count'], targetStarSystem.id)
+				session.add(targetOutput)
+				session.commit()
+			eventOutput = EventOutput(targetOutput.id, eventSignature.id, currentOutput['index'])
+			session.add(eventOutput)
+			
+	except:
+		session.rollback()
+		raise
+	finally:
+		session.close()
+
+	return '200', 200
 
 if isDebug:
 	from debug import debug

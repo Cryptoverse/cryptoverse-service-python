@@ -168,16 +168,18 @@ class EventSignature(Base):
 	hash = Column(String(64))
 	signature = Column(String(512))
 	time = Column(Integer)
+	confirmations = Column(Integer)
 
 	def __repr__(self):
 		return '<Event Signature %s>' % self.id
 
-	def __init__(self, type_id, fleet_id, hash, signature, time):
+	def __init__(self, type_id, fleet_id, hash, signature, time, confirmations):
 		self.type_id = type_id
 		self.fleet_id = fleet_id
 		self.hash = hash
 		self.signature = signature
 		self.time = time
+		self.confirmations = confirmations
 
 	def getJson(self, fleetHash, fleetKey, inputs, outputs, index):
 		return {
