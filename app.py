@@ -5,7 +5,8 @@ from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS, cross_origin
 
-starLogsMaxLimit = int(os.getenv('STARLOG_MAX_LIMIT', '10'))
+starLogsMaxLimit = int(os.getenv('STARLOGS_MAX_LIMIT', '10'))
+eventsMaxLimit = int(os.getenv('EVENTS_MAX_LIMIT', '10'))
 chainsMaxLimit = int(os.getenv('CHAINS_MAX_LIMIT', '10'))
 isDebug = 0 < os.getenv('CV_DEBUG', 0)
 
@@ -234,7 +235,7 @@ def postStarLogs():
 				needsStarLogIds.append(additionalSignatureBind)
 				continue
 			fleet = session.query(Fleet).filter_by(hash=currentEvent['fleet_hash']).first()
-			eventSignature = EventSignature(util.getEventTypeId(currentEvent['type']), fleet.id, currentEvent['hash'], currentEvent['signature'])
+			eventSignature = EventSignature(util.getEventTypeId(currentEvent['type']), fleet.id, currentEvent['hash'], currentEvent['signature'], util.getTime())
 			session.add(eventSignature)
 			session.commit()
 			eventSignatureBind = StarLogEventSignature(eventSignature.id, None, currentEvent['index'])
@@ -282,17 +283,43 @@ def postStarLogs():
 		raise
 	finally:
 		session.close()
-
-	# database.session.add(posted)
-	# database.session.commit()
 	return '200', 200
 
-@app.route('/jumps')
-def getJumps():
-	return 200
+@app.route('/events')
+def getEvents():
+	session = database.session()
+	try:
+		limit = request.args.get('limit', 1, type=int)
 
-@app.route('/jumps', methods=['POST'])
-def postJumps():
+		if eventsMaxLimit < limit:
+			raise ValueError('limit greater than maximum allowed')
+
+		# Don't get reward event signatures, since they'll always be associated with an existing block.
+		signatures = session.query(EventSignature).order_by(EventSignature.time.desc()).filter(EventSignature.type_id != util.getEventTypeId('reward')).limit(limit)
+		results = []
+
+		for signature in signatures:
+			fleet = session.query(Fleet).filter_by(id=signature.fleet_id).first()
+
+			inputs = []
+			for currentInput in session.query(EventInput).filter_by(event_signature_id=signature.id).all():
+				currentInputEvent = session.query(Event).filter_by(id=currentInput.event_id).first()
+				inputs.append(currentInput.getJson(currentInputEvent.key))
+			
+			outputs = []
+			for currentOutput in session.query(EventOutput).filter_by(event_signature_id=signature.id).all():
+				currentOutputEvent = session.query(Event).filter_by(id=currentOutput.event_id).first()
+				outputFleet = session.query(Fleet).filter_by(id=currentOutputEvent.fleet_id).first()
+				outputStarSystem = session.query(StarLog).filter_by(id=currentOutputEvent.star_system_id).first()
+				outputs.append(currentOutput.getJson(util.getEventTypeName(currentOutputEvent.type_id), outputFleet.hash, currentOutputEvent.key, outputStarSystem.hash, currentOutputEvent.count))
+			
+			results.append(signature.getJson(fleet.hash, fleet.public_key, inputs, outputs, None))
+		return json.dumps(results)
+	finally:
+		session.close()
+
+@app.route('/events', methods=['POST'])
+def postEvents():
 	return 200
 
 if isDebug:
