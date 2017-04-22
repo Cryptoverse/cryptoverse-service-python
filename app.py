@@ -75,23 +75,7 @@ def getChains():
 		matches = query.all()
 		results = []
 
-#  {
-#             "fleet_hash": "32af95310de02a33911a1c0d3e1a83a440b7710ee55db25deaa8ce56f783712f",
-#             "fleet_key": "MIIBIjANBg...",
-#             "inputs": [],
-#             "outputs": [
-#                 {
-#                     "count": 10,
-#                     "fleet_hash": "32af95310de02a33911a1c0d3e1a83a440b7710ee55db25deaa8ce56f783712f",
-#                     "key": "a1b31282ceb9b6bf8503d6db0b1599f70b755918137c8bf96f651e0c79d8bf68",
-#                     "star_system": null,
-#                     "type": "reward"
-#                 }
-#             ],
-#             "signature": "b07ba9acb800e...",
-#             "type": "reward"
-#         }
-
+		# TODO: Make this code better by figuring out joins and such.
 		for match in matches:
 			signatureBinds = session.query(StarLogEventSignature).filter_by(star_log_id=match.id).all()
 			events = []
@@ -111,27 +95,12 @@ def getChains():
 					currentOutputEvent = session.query(Event).filter_by(id=currentOutput.event_id).first()
 					outputFleet = session.query(Fleet).filter_by(id=currentOutputEvent.fleet_id).first()
 					outputStarSystem = session.query(StarLog).filter_by(id=currentOutputEvent.star_system_id).first()
-					outputs.append(currentOutput.getJson(util.getEventTypeName(currentOutputEvent.type_id), outputFleet.hash, currentOutputEvent.key, outputStarSystem.hash, currentOutputEvent.count))
-				events.append(signatureMatch.getJson(fleet.hash, fleet.public_key, inputs, outputs))
+					# Rewards sent to the probed system can't have been known, so they would be left blank.
+					outputStarSystemHash = None if outputStarSystem.hash == match.hash else outputStarSystem.hash
+					outputs.append(currentOutput.getJson(util.getEventTypeName(currentOutputEvent.type_id), outputFleet.hash, currentOutputEvent.key, outputStarSystemHash, currentOutputEvent.count))
+				events.append(signatureMatch.getJson(fleet.hash, fleet.public_key, inputs, outputs, signatureBind.index))
 			results.append(match.getJson(events))
 
-			# TODO: Make this code better by figuring out joins and such.
-			# jumpMatches = session.query(StarLogJump).filter_by(star_log_id=match.id).all()
-			# jumps = []
-			# for jumpMatch in jumpMatches:
-			# 	jump = session.query(Jump).filter_by(id=jumpMatch.jump_id).first()
-			# 	origin = session.query(StarLog).filter_by(id=jump.origin_id).first()
-			# 	destination = session.query(StarLog).filter_by(id=jump.destination_id).first()
-			# 	fleet = session.query(Fleet).filter_by(id=jump.fleet_id).first()
-			# 	origin = None if origin is None else origin.hash
-			# 	destination = None if destination is None else destination.hash
-			# 	fleetHash = None
-			# 	fleetKey = None
-			# 	if fleet is not None:
-			# 		fleetHash = fleet.hash
-			# 		fleetKey = fleet.public_key
-			# 	jumps.append(jump.getJson(fleetHash, fleetKey, origin, destination))
-			# result.append(match.getJson(jumps))
 		return json.dumps(results)
 	finally:
 		session.close()

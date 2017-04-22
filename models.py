@@ -148,9 +148,9 @@ class Event(Base):
 	def __repr__(self):
 		return '<Event %s>' % self.id
 
-	def __init__(self, key, event_type_id, fleet_id, count, star_system_id):
+	def __init__(self, key, type_id, fleet_id, count, star_system_id):
 		self.key = key
-		self.event_type_id = event_type_id
+		self.type_id = type_id
 		self.fleet_id = fleet_id
 		self.count = count
 		self.star_system_id = star_system_id
@@ -177,13 +177,16 @@ class EventSignature(Base):
 		self.hash = hash
 		self.signature = signature
 
-	def getJson(self, fleetHash, fleetKey, inputs, outputs):
+	def getJson(self, fleetHash, fleetKey, inputs, outputs, index):
 		return {
+			'index': index,
 			'type': util.getEventTypeName(self.type_id),
 			'fleet_hash': fleetHash,
 			'fleet_key': fleetKey,
 			'inputs': inputs,
-			'outputs': outputs
+			'outputs': outputs,
+			'hash': self.hash,
+			'signature': self.signature
 		}
 
 class EventInput(Base):
