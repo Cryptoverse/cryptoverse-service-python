@@ -39,7 +39,10 @@ def getRules():
 		'difficulty_duration': util.difficultyDuration,
 		'difficulty_interval': util.difficultyInterval,
 		'difficulty_start': util.difficultyStart,
-		'ship_reward': util.shipReward
+		'ship_reward': util.shipReward,
+		'star_logs_max_limit': starLogsMaxLimit,
+		'events_max_limit': eventsMaxLimit,
+		'chains_max_limit': chainsMaxLimit
 	})
 
 @app.route("/jobprogress")
@@ -76,6 +79,7 @@ def getChains():
 		matches = query.all()
 		results = []
 
+		# TODO: Remove duplicate code that's in chains and starlogs.
 		# TODO: Make this code better by figuring out joins and such.
 		for match in matches:
 			signatureBinds = session.query(StarLogEventSignature).filter_by(star_log_id=match.id).all()
@@ -108,33 +112,61 @@ def getChains():
 
 @app.route('/star-logs')
 def getStarLogs():
-	# TODO: Surround with try/catch.
-	previousHash = request.args.get('previous_hash', None, type=str)
-	beforeTime = request.args.get('before_time', None, type=int)
-	sinceTime = request.args.get('since_time', None, type=int)
-	limit = request.args.get('limit', 1, type=int)
-	offset = request.args.get('offset', None, type=int)
-	query = database.session.query(StarLog)
-	if previousHash is not None:
-		validate.fieldIsSha256(previousHash, 'previous_hash')
-		query = query.filter_by(previous_hash=previousHash)
-	if beforeTime is not None:
-		query = query.filter(StarLog.time < beforeTime)
-	if sinceTime is not None:
-		query = query.filter(sinceTime < StarLog.time)
-	if sinceTime is not None and beforeTime is not None and beforeTime < sinceTime:
-		raise ValueError('since_time is greater than before_time')
-	if starLogsMaxLimit < limit:
-		raise ValueError('limit greater than maximum allowed')
-	if offset is not None:
-		query = query.offset(offset)
+	
+	session = database.session()
+	try:
+		previousHash = request.args.get('previous_hash', None, type=str)
+		beforeTime = request.args.get('before_time', None, type=int)
+		sinceTime = request.args.get('since_time', None, type=int)
+		limit = request.args.get('limit', 1, type=int)
+		offset = request.args.get('offset', None, type=int)
+		query = session.query(StarLog).order_by(StarLog.time.desc())
+		if previousHash is not None:
+			validate.fieldIsSha256(previousHash, 'previous_hash')
+			query = query.filter_by(previous_hash=previousHash)
+		if beforeTime is not None:
+			query = query.filter(StarLog.time < beforeTime)
+		if sinceTime is not None:
+			query = query.filter(sinceTime < StarLog.time)
+		if sinceTime is not None and beforeTime is not None and beforeTime < sinceTime:
+			raise ValueError('since_time is greater than before_time')
+		if starLogsMaxLimit < limit:
+			raise ValueError('limit greater than maximum allowed')
+		if offset is not None:
+			query = query.offset(offset)
 
-	query = query.limit(limit)
-	matches = query.all()
-	result = []
-	for match in matches:
-		result.append(match.getJson())
-	return json.dumps(result)
+		query = query.limit(limit)
+		matches = query.all()
+		results = []
+		# TODO: Remove duplicate code that's in chains and starlogs.
+		# TODO: Make this code better by figuring out joins and such.
+		for match in matches:
+			signatureBinds = session.query(StarLogEventSignature).filter_by(star_log_id=match.id).all()
+			events = []
+			for signatureBind in signatureBinds:
+				signatureMatch = session.query(EventSignature).filter_by(id=signatureBind.event_signature_id).first()
+				fleet = session.query(Fleet).filter_by(id=signatureMatch.fleet_id).first()
+				inputEvents = session.query(EventInput).filter_by(event_signature_id=signatureMatch.id).all()
+				outputEvents = session.query(EventOutput).filter_by(event_signature_id=signatureMatch.id).all()
+
+				inputs = []
+				for currentInput in inputEvents:
+					currentInputEvent = session.query(Event).filter_by(id=currentInput.event_id).first()
+					inputs.append(currentInput.getJson(currentInputEvent.key))
+				
+				outputs = []
+				for currentOutput in outputEvents:
+					currentOutputEvent = session.query(Event).filter_by(id=currentOutput.event_id).first()
+					outputFleet = session.query(Fleet).filter_by(id=currentOutputEvent.fleet_id).first()
+					outputStarSystem = session.query(StarLog).filter_by(id=currentOutputEvent.star_system_id).first()
+					# Rewards sent to the probed system can't have been known, so they would be left blank.
+					outputStarSystemHash = None if outputStarSystem.hash == match.hash else outputStarSystem.hash
+					outputs.append(currentOutput.getJson(util.getEventTypeName(currentOutputEvent.type_id), outputFleet.hash, currentOutputEvent.key, outputStarSystemHash, currentOutputEvent.count))
+				events.append(signatureMatch.getJson(fleet.hash, fleet.public_key, inputs, outputs, signatureBind.index))
+			results.append(match.getJson(events))
+		return json.dumps(results)
+	finally:
+		session.close()
 
 @app.route('/star-logs', methods=['POST'])
 def postStarLogs():
