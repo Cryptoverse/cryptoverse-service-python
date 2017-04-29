@@ -290,22 +290,35 @@ def postStarLogs():
 				targetInput = session.query(Event).filter_by(key=currentInput['key']).first()
 				if targetInput is None:
 					raise Exception('event %s is not accounted for' % currentInput['key'])
-				eventInput = None
+				inputUses = session.query(EventInput).filter_by(event_id=targetInput.id).all()
+				inputUsesSignatures = []
+				for inputUse in inputUses:
+					if inputUse not in inputUsesSignatures:
+						inputUsesSignatures.append(inputUse.event_signature_id)
+				signatureStarLogs = []
+				for inputUsesSignature in inputUsesSignatures:
+					for signatureBind in session.query(StarLogEventSignature).filter_by(event_signature_id=inputUsesSignature).all():
+						if signatureBind.star_log_id not in signatureStarLogs:
+							signatureStarLogs.append(signatureBind.star_log_id)
+				# TODO: Optimize this into one select call
+				checkedChains = []
+				for signatureStarLog in signatureStarLogs:
+					signatureChainIndex = session.query(ChainIndex).filter_by(star_log_id=signatureStarLog).first()
+					if height <= signatureChainIndex.height:
+						continue
+					nextChainIndex = signatureChainIndex
+					while nextChainIndex is not None:
+						if nextChainIndex.chain in checkedChains:
+							break
+						else:
+							checkedChains.append(nextChainIndex.chain)
+
+						if nextChainIndex.chain == chainIndex.chain:
+							raise Exception('event %s has already been used by %s' % (currentInput['key'], nextChainIndex.hash))
+						nextChainIndex = None if nextChainIndex.root_id is None else session.query(ChainIndex).filter_by(id=nextChainIndex.root_id).first()
+				print checkedChains
 				if newSignature:
-					eventInput = EventInput(targetInput.id, eventSignature.id, currentInput['index'])
-					session.add(eventInput)
-				else:
-					eventInput = session.query(EventInput).filter_by(index=currentInput['index'], event_id=targetInput.id, event_signature_id=eventSignature.id).first()
-
-				# TODO: Check each input to make sure its not used already
-				# existingEventInputs = session.query(EventInput).filter_by(event_id=targetInput.id).all()
-				# signatureIds = []
-				# for currentEventInput in existingEventInputs:
-				# 	if currentEventInput.event_signature_id not in signatureIds:
-				# 		signatureIds.append(currentEventInput.event_signature_id)
-
-				# 		# Check signatures referenced by previous confirmations!
-				# print signatureIds
+					session.add(EventInput(targetInput.id, eventSignature.id, currentInput['index']))
 				
 			for currentOutput in currentEvent['outputs']:
 				targetOutput = None
