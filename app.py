@@ -229,10 +229,11 @@ def postStarLogs():
 		needsStarLogIds = [chainIndex, chain]
 		needsStarSystemIds = []
 
-		previousStarLog = None if previousStarLogId is None else session.query(StarLog).filter_by(id=previousStarLogId).first()
-
+		previousStarLog = session.query(StarLog).filter_by(id=previousStarLogId).first() if previousStarLogId == 0 or previousStarLogId is not None else None
+		intervalId = None
 		# If the previous StarLog has no interval_id, that means we recalculated difficulty on it.
-		intervalId = None if previousStarLog is None else previousStarLog.interval_id
+		if previousStarLog is not None:
+			intervalId = previousStarLog.interval_id if previousStarLog.interval_id == 0 or previousStarLog.interval_id is not None else previousStarLog.id
 
 		if isGenesis:
 			if starLogJson['difficulty'] != util.difficultyStart:
@@ -372,9 +373,10 @@ def postEvents():
 		usedInputs = []
 		
 		for currentInput in eventJson['inputs']:
-			inputEvent = session.query(Event).filter_by(key=currentInput['key']).first()
-			if inputEvent is None:
+			targetInput = session.query(Event).filter_by(key=currentInput['key']).first()
+			if targetInput is None:
 				raise Exception('event with key %s not accounted for' % currentInput['key'])
+			session.add(EventInput(targetInput.id, eventSignature.id, currentInput['index']))
 		for currentOutput in eventJson['outputs']:
 			targetOutput = session.query(Event).filter_by(key=currentOutput['key']).first()
 			if targetOutput is None:
@@ -392,7 +394,7 @@ def postEvents():
 				session.commit()
 			eventOutput = EventOutput(targetOutput.id, eventSignature.id, currentOutput['index'])
 			session.add(eventOutput)
-			
+		session.commit()	
 	except:
 		session.rollback()
 		raise

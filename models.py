@@ -210,10 +210,10 @@ class EventInput(Base):
 		self.event_signature_id = event_signature_id
 		self.index = index
 
-	def getJson(self):
+	def getJson(self, key):
 		return {
 			'index': self.index,
-			'key': self.key
+			'key': key
 		}
 
 class EventOutput(Base):
