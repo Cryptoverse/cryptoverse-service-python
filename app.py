@@ -262,29 +262,55 @@ def postStarLogs():
 			session.commit()
 
 		for currentEvent in starLogJson['events']:
-			existingSignature = session.query(EventSignature).filter_by(hash=currentEvent['hash']).first()
-			if existingSignature:
-				additionalSignatureBind = StarLogEventSignature(existingSignature.id, None, currentEvent['index'])
+			eventSignature = session.query(EventSignature).filter_by(hash=currentEvent['hash']).first()
+			newSignature = eventSignature is None
+			if newSignature:
+				fleet = session.query(Fleet).filter_by(hash=currentEvent['fleet_hash']).first()
+				eventSignature = EventSignature(util.getEventTypeId(currentEvent['type']), fleet.id, currentEvent['hash'], currentEvent['signature'], util.getTime(), 1)
+				session.add(eventSignature)
+				session.commit()
+				eventSignatureBind = StarLogEventSignature(eventSignature.id, None, currentEvent['index'])
+				session.add(eventSignatureBind)
+				needsStarLogIds.append(eventSignatureBind)
+			else:
+				# TODO: Make sure signature was not previously in blockchain
+				signatureInclusions = session.query(StarLogEventSignature).filter_by(event_signature_id=eventSignature.id).all()
+				for currentSignature in signatureInclusions:
+					signatureStarlog = session.query(StarLog).filter_by(id=currentSignature.star_log_id).first()
+					if height <= signatureStarlog.height:
+						continue
+					signatureChain = session.query(ChainIndex).filter_by(signatureStarlog.chain_index_id).first()
+
+				additionalSignatureBind = StarLogEventSignature(eventSignature.id, None, currentEvent['index'])
 				session.add(additionalSignatureBind)
 				needsStarLogIds.append(additionalSignatureBind)
-				continue
-			fleet = session.query(Fleet).filter_by(hash=currentEvent['fleet_hash']).first()
-			eventSignature = EventSignature(util.getEventTypeId(currentEvent['type']), fleet.id, currentEvent['hash'], currentEvent['signature'], util.getTime(), 1)
-			session.add(eventSignature)
-			session.commit()
-			eventSignatureBind = StarLogEventSignature(eventSignature.id, None, currentEvent['index'])
-			session.add(eventSignatureBind)
-			needsStarLogIds.append(eventSignatureBind)
+				eventSignature.confirmations += 1
 
 			for currentInput in currentEvent['inputs']:
 				targetInput = session.query(Event).filter_by(key=currentInput['key']).first()
 				if targetInput is None:
 					raise Exception('event %s is not accounted for' % currentInput['key'])
-				eventInput = EventInput(targetInput.id, eventSignature.id, currentInput['index'])
-				session.add(eventInput)
+				eventInput = None
+				if newSignature:
+					eventInput = EventInput(targetInput.id, eventSignature.id, currentInput['index'])
+					session.add(eventInput)
+				else:
+					eventInput = session.query(EventInput).filter_by(index=currentInput['index'], event_id=targetInput.id, event_signature_id=eventSignature.id).first()
+
+				# TODO: Check each input to make sure its not used already
+				# existingEventInputs = session.query(EventInput).filter_by(event_id=targetInput.id).all()
+				# signatureIds = []
+				# for currentEventInput in existingEventInputs:
+				# 	if currentEventInput.event_signature_id not in signatureIds:
+				# 		signatureIds.append(currentEventInput.event_signature_id)
+
+				# 		# Check signatures referenced by previous confirmations!
+				# print signatureIds
+				
 			for currentOutput in currentEvent['outputs']:
-				targetOutput = session.query(Event).filter_by(key=currentOutput['key']).first()
-				if targetOutput is None:
+				targetOutput = None
+				eventOutput = None
+				if newSignature:
 					outputFleet = session.query(Fleet).filter_by(hash=currentOutput['fleet_hash']).first()
 					if outputFleet is None:
 						outputFleet = Fleet(currentOutput['fleet_hash'], None)
@@ -301,8 +327,13 @@ def postStarLogs():
 					session.commit()
 					if targetStarSystemId is None:
 						needsStarSystemIds.append(targetOutput)
-				eventOutput = EventOutput(targetOutput.id, eventSignature.id, currentOutput['index'])
-				session.add(eventOutput)
+					eventOutput = EventOutput(targetOutput.id, eventSignature.id, currentOutput['index'])
+					session.add(eventOutput)
+				else:
+					targetOutput = session.query(Event).filter_by(key=currentOutput['key']).first()
+					eventOutput = session.query(EventOutput).filter_by(index=currentOutput['index'], event_id=targetOutput.id, event_signature_id=eventSignature.id)
+					
+				
 
 		starLog = StarLog(starLogJson['hash'], chainIndex.id, height, len(request.data), starLogJson['log_header'], starLogJson['version'], starLogJson['previous_hash'], starLogJson['difficulty'], starLogJson['nonce'], starLogJson['time'], starLogJson['events_hash'], intervalId)
 		session.add(starLog)
