@@ -377,7 +377,7 @@ def postEvents():
 				raise Exception('event with key %s not accounted for' % currentInput['key'])
 		for currentOutput in eventJson['outputs']:
 			targetOutput = session.query(Event).filter_by(key=currentOutput['key']).first()
-			if targetOutput is not None:
+			if targetOutput is None:
 				outputFleet = session.query(Fleet).filter_by(hash=currentOutput['fleet_hash']).first()
 				if outputFleet is None:
 					outputFleet = Fleet(currentOutput['fleet_hash'], None)
