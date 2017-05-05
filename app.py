@@ -279,23 +279,29 @@ def postStarLogs():
 				eventSignature.confirmations += 1
 
 			for currentInput in currentEvent['inputs']:
+				# Check if we even have an input with the matching key.
 				targetInput = session.query(Event).filter_by(key=currentInput['key']).first()
 				if targetInput is None:
 					raise Exception('event %s is not accounted for' % currentInput['key'])
+				# Get all uses of this input.
 				inputUses = session.query(EventInput).filter_by(event_id=targetInput.id).all()
+				# Build a list of all signatures that use this input.
 				inputUsesSignatures = []
 				for inputUse in inputUses:
-					if inputUse not in inputUsesSignatures:
+					if inputUse.event_signature_id not in inputUsesSignatures:
 						inputUsesSignatures.append(inputUse.event_signature_id)
+				# Build a list of all starlogs that reference any of the matching signatures.
 				signatureStarLogs = []
 				for inputUsesSignature in inputUsesSignatures:
 					for signatureBind in session.query(StarLogEventSignature).filter_by(event_signature_id=inputUsesSignature).all():
 						if signatureBind.star_log_id not in signatureStarLogs:
 							signatureStarLogs.append(signatureBind.star_log_id)
-				# TODO: Optimize this into one select call
+				# TODO: Optimize this into one select call.
+				# Make sure the signature is not used earlier in the chain.
 				checkedChains = []
 				for signatureStarLog in signatureStarLogs:
 					signatureChainIndex = session.query(ChainIndex).filter_by(star_log_id=signatureStarLog).first()
+					# If the height of this signature's usage is higher in the chain, then we're branching off, so we duck out here.
 					if height <= signatureChainIndex.height:
 						continue
 					nextChainIndex = signatureChainIndex
@@ -308,9 +314,33 @@ def postStarLogs():
 						if nextChainIndex.chain == chainIndex.chain:
 							raise Exception('event %s has already been used by %s' % (currentInput['key'], nextChainIndex.hash))
 						nextChainIndex = None if nextChainIndex.root_id is None else session.query(ChainIndex).filter_by(id=nextChainIndex.root_id).first()
+				# Now we need to make sure each individual input actually exists, and wasn't created in a higher chain.
+				inputOrigin = session.query(EventOutput).filter_by(event_id=targetInput.id).first()
+				if inputOrigin is None:
+					raise Exception('output event of input %s not accounted for' % currentInput['key'])
+				originBinds = session.query(StarLogEventSignature).filter_by(event_signature_id=inputOrigin.event_signature_id).all()
+				validatedOrigin = False
+				originCheckedChains = []
+				for originBind in originBinds:
+					originChainIndex = session.query(ChainIndex).filter_by(star_log_id=originBind.star_log_id).first()
+					# We don't care about higher origins
+					if height <= originChainIndex.height:
+						continue
+					nextChainIndex = chainIndex
+					while nextChainIndex is not None:
+						if nextChainIndex.chain in originCheckedChains:
+							break
+						else:
+							originCheckedChains.append(nextChainIndex.chain)
+						if nextChainIndex.chain == originChainIndex.chain:
+							validatedOrigin = True
+							break
+						nextChainIndex = None if nextChainIndex.root_id is None else session.query(ChainIndex).filter_by(id=nextChainIndex.root_id).first()
+				if not validatedOrigin:
+					raise Exception('event input %s does not have a valid output event' % currentInput['key'])
 				if newSignature:
 					session.add(EventInput(targetInput.id, eventSignature.id, currentInput['index']))
-				
+
 			for currentOutput in currentEvent['outputs']:
 				targetOutput = None
 				eventOutput = None
