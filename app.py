@@ -1,3 +1,4 @@
+import traceback
 import logging
 import os
 import json
@@ -375,12 +376,13 @@ def postStarLogs():
 		for entry in needsStarSystemIds:
 			entry.star_system_id = starLog.id
 		session.commit()
+		return '200', 200
 	except:
 		session.rollback()
-		raise
+		traceback.print_exc()
+		return '400', 400
 	finally:
 		session.close()
-	return '200', 200
 
 @app.route('/events')
 def getEvents():
@@ -456,13 +458,13 @@ def postEvents():
 			eventOutput = EventOutput(targetOutput.id, eventSignature.id, currentOutput['index'])
 			session.add(eventOutput)
 		session.commit()
+		return '200', 200
 	except:
 		session.rollback()
-		raise
+		traceback.print_exc()
+		return '400', 400
 	finally:
 		session.close()
-
-	return '200', 200
 
 if isDebug:
 	from debug import debug
