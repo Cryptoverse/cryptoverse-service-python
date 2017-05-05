@@ -36,11 +36,11 @@ def routeIndex():
 @app.route("/rules")
 def getRules():
 	return json.dumps({
-		'difficulty_fudge': util.difficultyFudge,
-		'difficulty_duration': util.difficultyDuration,
-		'difficulty_interval': util.difficultyInterval,
-		'difficulty_start': util.difficultyStart,
-		'ship_reward': util.shipReward,
+		'difficulty_fudge': util.difficultyFudge(),
+		'difficulty_duration': util.difficultyDuration(),
+		'difficulty_interval': util.difficultyInterval(),
+		'difficulty_start': util.difficultyStart(),
+		'ship_reward': util.shipReward(),
 		'star_logs_max_limit': starLogsMaxLimit,
 		'events_max_limit': eventsMaxLimit,
 		'chains_max_limit': chainsMaxLimit
@@ -173,7 +173,7 @@ def getStarLogs():
 def postStarLogs():
 	session = database.session()
 	try:
-		validate.byteSize(util.maximumStarLogSize, request.data)
+		validate.byteSize(util.maximumStarLogSize(), request.data)
 		starLogJson = json.loads(request.data)
 		validate.starLog(starLogJson)
 
@@ -237,7 +237,7 @@ def postStarLogs():
 			intervalId = previousStarLog.interval_id if previousStarLog.interval_id == 0 or previousStarLog.interval_id is not None else previousStarLog.id
 
 		if isGenesis:
-			if starLogJson['difficulty'] != util.difficultyStart:
+			if starLogJson['difficulty'] != util.difficultyStart():
 				raise ValueError('difficulty for genesis starlog does not match starting difficulty')
 		elif util.isDifficultyChanging(height):
 			intervalStart = session.query(StarLog).filter_by(id=previousStarLog.interval_id).first()
@@ -422,7 +422,7 @@ def getEvents():
 def postEvents():
 	session = database.session()
 	try:
-		validate.byteSize(util.maximumEventSize, request.data)
+		validate.byteSize(util.maximumEventSize(), request.data)
 		eventJson = json.loads(request.data)
 		validate.event(eventJson, False, True, False)
 
@@ -471,6 +471,6 @@ if isDebug:
 	app.register_blueprint(debug, url_prefix='/debug')
 
 if __name__ == '__main__':
-	if 0 < util.difficultyFudge:
-		app.logger.info('All hash difficulties will be calculated with DIFFICULTY_FUDGE %s' % (util.difficultyFudge))
+	if 0 < util.difficultyFudge():
+		app.logger.info('All hash difficulties will be calculated with DIFFICULTY_FUDGE %s' % (util.difficultyFudge()))
 	app.run(use_reloader = False)
