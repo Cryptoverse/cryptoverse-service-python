@@ -41,6 +41,10 @@ def getRules():
 		'difficulty_interval': util.difficultyInterval(),
 		'difficulty_start': util.difficultyStart(),
 		'ship_reward': util.shipReward(),
+		'cartesian_digits': util.cartesianDigits(),
+		'jump_cost_min': util.jumpCostMinimum(),
+		'jump_cost_max': util.jumpCostMaximum(),
+		'jump_distance_max': util.jumpDistanceMaximum(),
 		'star_logs_max_limit': starLogsMaxLimit,
 		'events_max_limit': eventsMaxLimit,
 		'chains_max_limit': chainsMaxLimit
