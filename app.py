@@ -17,8 +17,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DB_HOST']
 database = SQLAlchemy(app)
 CORS(app)
 
+# TODO: Do these still need to be separated from the rest of the imports?
 import util
 import validate
+import verify
 from tasks import tasker
 from models import StarLog, Fleet, Chain, ChainIndex, Event, EventSignature, EventInput, EventOutput, StarLogEventSignature
 
@@ -268,9 +270,9 @@ def postStarLogs():
 
 		for currentEvent in starLogJson['events']:
 			eventSignature = session.query(EventSignature).filter_by(hash=currentEvent['hash']).first()
+			fleet = session.query(Fleet).filter_by(hash=currentEvent['fleet_hash']).first()
 			newSignature = eventSignature is None
 			if newSignature:
-				fleet = session.query(Fleet).filter_by(hash=currentEvent['fleet_hash']).first()
 				eventSignature = EventSignature(util.getEventTypeId(currentEvent['type']), fleet.id, currentEvent['hash'], currentEvent['signature'], util.getTime(), 1)
 				session.add(eventSignature)
 				session.flush()
@@ -282,12 +284,15 @@ def postStarLogs():
 				session.add(additionalSignatureBind)
 				needsStarLogIds.append(additionalSignatureBind)
 				eventSignature.confirmations += 1
-
+			
+			inputs = []
 			for currentInput in currentEvent['inputs']:
 				# Check if we even have an input with the matching key.
 				targetInput = session.query(Event).filter_by(key=currentInput['key']).first()
 				if targetInput is None:
 					raise Exception('event %s is not accounted for' % currentInput['key'])
+				# Append this for further validation.
+				inputs.append(targetInput)
 				# Get all uses of this input.
 				inputUses = session.query(EventInput).filter_by(event_id=targetInput.id).all()
 				# Build a list of all signatures that use this input.
@@ -346,6 +351,7 @@ def postStarLogs():
 				if newSignature:
 					session.add(EventInput(targetInput.id, eventSignature.id, currentInput['index']))
 
+			outputs = []
 			for currentOutput in currentEvent['outputs']:
 				targetOutput = None
 				eventOutput = None
@@ -371,6 +377,13 @@ def postStarLogs():
 				else:
 					targetOutput = session.query(Event).filter_by(key=currentOutput['key']).first()
 					eventOutput = session.query(EventOutput).filter_by(index=currentOutput['index'], event_id=targetOutput.id, event_signature_id=eventSignature.id)
+				# Append this for further validation.
+				outputs.append(targetOutput)
+			
+			if currentEvent['type'] == 'jump':
+				verify.jump(session, fleet, inputs, outputs)
+			elif currentEvent['type'] not in ['reward']:
+				raise Exception('event type %s not supported' % currentEvent['type'])
 
 		starLog = StarLog(starLogJson['hash'], chainIndex.id, height, len(request.data), starLogJson['log_header'], starLogJson['version'], starLogJson['previous_hash'], starLogJson['difficulty'], starLogJson['nonce'], starLogJson['time'], starLogJson['events_hash'], intervalId)
 		session.add(starLog)
@@ -465,42 +478,7 @@ def postEvents():
 			eventOutput = EventOutput(targetOutput.id, eventSignature.id, currentOutput['index'])
 			session.add(eventOutput)
 		if eventJson['type'] == 'jump':
-			if len(inputs) == 0:
-				raise Exception('jump must contain at least one input')
-			if len(outputs) == 0:
-				raise Exception('jump must contain at least oun output')
-			inputShipCount = 0
-			originSystemId = inputs[0].star_system_id
-			for currentInput in inputs:
-				if currentInput.fleet_id != fleet.id:
-					raise Exception('jump must consist of ships from a single fleet')
-				if currentInput.star_system_id != originSystemId:
-					raise Exception('jump inputs must start from the same origin')
-				inputShipCount += currentInput.count
-			outputShipCount = 0
-			destinationSystemId = None
-			for currentOutput in outputs:
-				if currentOutput.star_system_id != originSystemId:
-					destinationSystemId = currentOutput.star_system_id
-					break
-			if destinationSystemId is None:
-				raise Exception('jump must consist of at least one output in another system')
-			for currentOutput in outputs:
-				if currentOutput.fleet_id != fleet.id:
-					raise Exception('jump must consist of ships from a single fleet')
-				if currentOutput.star_system_id == originSystemId:
-					inputShipCount -= currentOutput.count
-				elif currentOutput.star_system_id == destinationSystemId:
-					outputShipCount += currentOutput.count
-				else:
-					raise Exception('jump outputs must end in the same origin or destination')
-			originSystem = session.query(StarLog).filter_by(id=originSystemId).first()
-			destinationSystem = session.query(StarLog).filter_by(id=destinationSystemId).first()
-			shipCost = util.getJumpCost(originSystem.hash, destinationSystem.hash, inputShipCount)
-			if shipCost == inputShipCount:
-				raise Exception('jump cannot have zero ships reach destination')
-			if shipCost != (inputShipCount - outputShipCount):
-				raise Exception('jump cost does not match expected cost of %s' % shipCost)
+			verify.jump(session, fleet, inputs, outputs)
 		else:
 			raise Exception('event type %s not supported' % eventJson['type'])
 
