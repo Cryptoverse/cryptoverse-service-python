@@ -382,6 +382,8 @@ def postStarLogs():
 			
 			if currentEvent['type'] == 'jump':
 				verify.jump(session, fleet, inputs, outputs)
+			elif currentEvent['type'] == 'attack':
+				verify.attack(fleet, inputs, outputs)
 			elif currentEvent['type'] not in ['reward']:
 				raise Exception('event type %s not supported' % currentEvent['type'])
 
@@ -479,6 +481,8 @@ def postEvents():
 			session.add(eventOutput)
 		if eventJson['type'] == 'jump':
 			verify.jump(session, fleet, inputs, outputs)
+		elif eventJson['type'] == 'attack':
+			verify.attack(fleet, inputs, outputs)
 		else:
 			raise Exception('event type %s not supported' % eventJson['type'])
 

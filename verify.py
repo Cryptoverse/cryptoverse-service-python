@@ -38,3 +38,47 @@ def jump(session, fleet, inputs, outputs):
 		raise Exception('jump cannot have zero ships reach destination')
 	if shipCost != (inputShipCount - outputShipCount):
 		raise Exception('jump cost does not match expected cost of %s' % shipCost)
+
+def attack(fleet, inputs, outputs):
+	if len(inputs) < 2:
+		raise Exception('jump must contain at least two inputs')
+	
+	shipCount = 0
+	enemyShipCount = 0
+	originSystemId = inputs[0].star_system_id
+	enemyFleetId = None
+	for currentInput in inputs:
+		if currentInput.star_system_id != originSystemId:
+			raise Exception('attack inputs must be from the same origin')
+		if currentInput.fleet_id == fleet.id:
+			shipCount += currentInput.count
+		else:
+			if enemyFleetId is None:
+				enemyFleetId = currentInput.fleet_id
+			elif enemyFleetId != currentInput.fleet_id:
+				raise Exception('an attack may only consist of two fleets')
+			enemyShipCount += currentInput.count
+		
+	outputShipCount = 0
+	outputEnemyShipCount = 0
+	for currentOutput in outputs:
+		if currentOutput.count == 0:
+			raise Exception('attack output cannot be zero')
+		if currentOutput.star_system_id != originSystemId:
+			raise Exception('attack outputs must be in the same origin')
+		if currentOutput.fleet_id == fleet.id:
+			outputShipCount += currentOutput.count
+		elif currentOutput.fleet_id == enemyFleetId:
+			outputEnemyShipCount += currentOutput.count
+		else:
+			raise Exception('an attack output must be from the original fleets')
+	
+	if shipCount < enemyShipCount:
+		if enemyShipCount - shipCount != outputEnemyShipCount:
+			raise Exception('attack input and output count mismatch')
+	elif enemyShipCount < shipCount:
+		if shipCount - enemyShipCount != outputShipCount:
+			raise Exception('attack input and output count mismatch')
+	elif outputShipCount + outputEnemyShipCount != 0:
+		raise Exception('attack input and output count mismatch')
+	
