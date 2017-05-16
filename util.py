@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 def difficultyFudge():
 	return int(os.getenv('DIFFICULTY_FUDGE', '0'))
 def difficultyInterval():
-	return int(os.getenv('DIFFICULTY_INTERVAL', '7560'))
+	return int(os.getenv('DIFFICULTY_INTERVAL', '10080'))
 def difficultyDuration():
 	return int(os.getenv('DIFFICULTY_DURATION', '1209600'))
 def difficultyStart():

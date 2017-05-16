@@ -3,5 +3,5 @@
 if [ $NO_GATEWAY == '1' ]; then
 	python app.py
 else
-	gunicorn -w 4 -b 127.0.0.1:5000 app:app
+	`which gunicorn` -w 4 -b 127.0.0.1:5000 app:app
 fi
