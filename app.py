@@ -3,26 +3,24 @@ import logging
 import os
 import json
 from flask import Flask, request
-from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS, cross_origin
 
 starLogsMaxLimit = int(os.getenv('STARLOGS_MAX_LIMIT', '10'))
 eventsMaxLimit = int(os.getenv('EVENTS_MAX_LIMIT', '10'))
 chainsMaxLimit = int(os.getenv('CHAINS_MAX_LIMIT', '10'))
-isDebug = 0 < os.getenv('CV_DEBUG', 0)
 
 app = Flask(__name__)
-app.debug = isDebug
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DB_HOST']
-database = SQLAlchemy(app)
-CORS(app)
+app.debug = 0 < os.getenv('CV_DEBUG', 0)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DB_HOST', 'sqlite:///service.db')
 
 # TODO: Do these still need to be separated from the rest of the imports?
 import util
 import validate
 import verify
-from tasks import tasker
-from models import StarLog, Fleet, Chain, ChainIndex, Event, EventSignature, EventInput, EventOutput, StarLogEventSignature
+from models import database, StarLog, Fleet, Chain, ChainIndex, Event, EventSignature, EventInput, EventOutput, StarLogEventSignature
+
+database.app = app
+database.init_app(app)
+database.create_all()
 
 @app.before_first_request
 def setupLogging():
@@ -51,21 +49,6 @@ def getRules():
         'events_max_limit': eventsMaxLimit,
         'chains_max_limit': chainsMaxLimit
     })
-
-@app.route("/jobprogress")
-@cross_origin()
-def poll_state():
-    if 'job' in request.args:
-        job_id = request.args['job']
-    else:
-        return 'No job id given.'
-
-    job = tasker.AsyncResult(job_id)
-    data = job.result or job.state
-    # meta = json.dumps(job.info)
-    if data is None:
-        return "{}"
-    return str(json.dumps(data))
 
 @app.route('/chains')
 def getChains():
@@ -494,10 +477,6 @@ def postEvents():
         return '400', 400
     finally:
         session.close()
-
-if isDebug:
-    from debug import debug
-    app.register_blueprint(debug, url_prefix='/debug')
 
 if __name__ == '__main__':
     if 0 < util.difficultyFudge():

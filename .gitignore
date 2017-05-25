@@ -94,3 +94,6 @@ dump.rdb
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+
+# Other
+service.db

@@ -1,10 +1,10 @@
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
 import util
 
-Base = declarative_base()
+database = SQLAlchemy()
 
-class StarLog(Base):
+class StarLog(database.Model):
     __tablename__ = 'star_logs'
     extend_existing=True
 
@@ -54,7 +54,7 @@ class StarLog(Base):
             'events': events
         }
 
-class ChainIndex(Base):
+class ChainIndex(database.Model):
     __tablename__ = 'chain_indices'
     extend_existing=True
 
@@ -88,7 +88,7 @@ class ChainIndex(Base):
             'height': self.height
         }
 
-class Chain(Base):
+class Chain(database.Model):
     __tablename__ = 'chains'
     extend_existing=True
 
@@ -113,7 +113,7 @@ class Chain(Base):
             'chain': self.chain
         }
 
-class Fleet(Base):
+class Fleet(database.Model):
     __tablename__ = 'fleets'
     extend_existing=True
 
@@ -134,7 +134,7 @@ class Fleet(Base):
             'public_key': self.public_key
         }
 
-class Event(Base):
+class Event(database.Model):
     __tablename__ = 'events'
     extend_existing=True
 
@@ -158,7 +158,7 @@ class Event(Base):
     def getJson(self):
         return { 'key': self.key }
 
-class EventSignature(Base):
+class EventSignature(database.Model):
     __tablename__ = 'event_signatures'
     extend_existing=True
 
@@ -193,7 +193,7 @@ class EventSignature(Base):
             'signature': self.signature
         }
 
-class EventInput(Base):
+class EventInput(database.Model):
     __tablename__ = 'event_inputs'
     extend_existing=True
 
@@ -216,7 +216,7 @@ class EventInput(Base):
             'key': key
         }
 
-class EventOutput(Base):
+class EventOutput(database.Model):
     __tablename__ = 'event_outputs'
     extend_existing=True
 
@@ -243,7 +243,7 @@ class EventOutput(Base):
             'count': count
         }
 
-class StarLogEventSignature(Base):
+class StarLogEventSignature(database.Model):
     __tablename__ = 'star_log_event_signatures'
     extend_existing=True
 
