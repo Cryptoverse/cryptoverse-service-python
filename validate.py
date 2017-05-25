@@ -131,7 +131,7 @@ def events(eventsJson):
             for currentOutput in currentEvent['outputs']:
                 if currentOutput['count'] <= 0:
                     raise Exception('attack events cannot outputs zero or less ships')
-                if currentOutput['attack'] != 'attack':
+                if currentOutput['type'] != 'attack':
                     raise Exception('attack outputs must be of type "attack"')
         else:
             raise ValueError('unrecognized event of type %s' % currentEvent['type'])
