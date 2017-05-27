@@ -1,12 +1,14 @@
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, ForeignKey
+
 import util
 
 database = SQLAlchemy()
 
+
 class StarLog(database.Model):
     __tablename__ = 'star_logs'
-    extend_existing=True
+    extend_existing = True
 
     id = Column(Integer, primary_key=True)
     hash = Column(String(64))
@@ -39,7 +41,7 @@ class StarLog(database.Model):
         self.events_hash = events_hash
         self.interval_id = interval_id
 
-    def getJson(self, events):
+    def get_json(self, events):
         return {
             'create_time': self.time,
             'hash': self.hash,
@@ -54,9 +56,10 @@ class StarLog(database.Model):
             'events': events
         }
 
+
 class ChainIndex(database.Model):
     __tablename__ = 'chain_indices'
-    extend_existing=True
+    extend_existing = True
 
     id = Column(Integer, primary_key=True)
     root_id = Column(Integer, ForeignKey('chain_indices.id'))
@@ -81,23 +84,24 @@ class ChainIndex(database.Model):
         self.height = height
         self.chain = chain
 
-    def getJson(self):
+    def get_json(self):
         return {
             'hash': self.hash,
             'previous_hash': self.previous_hash,
             'height': self.height
         }
 
+
 class Chain(database.Model):
     __tablename__ = 'chains'
-    extend_existing=True
+    extend_existing = True
 
     id = Column(Integer, primary_key=True)
     height = Column(Integer)
     head_index_id = Column(Integer)
     chain = Column(Integer)
     star_log_id = Column(Integer)
-    
+
     def __repr__(self):
         return '<Chain %s>' % self.id
 
@@ -107,20 +111,21 @@ class Chain(database.Model):
         self.chain = chain
         self.star_log_id = star_log_id
 
-    def getJson(self):
+    def get_json(self):
         return {
             'height': self.height,
             'chain': self.chain
         }
 
+
 class Fleet(database.Model):
     __tablename__ = 'fleets'
-    extend_existing=True
+    extend_existing = True
 
     id = Column(Integer, primary_key=True)
     hash = Column(String(64))
     public_key = Column(String(392))
-    
+
     def __repr__(self):
         return '<Fleet %r>' % self.id
 
@@ -128,15 +133,16 @@ class Fleet(database.Model):
         self.hash = hash
         self.public_key = public_key
 
-    def getJson(self):
+    def get_json(self):
         return {
             'hash': self.hash,
             'public_key': self.public_key
         }
 
+
 class Event(database.Model):
     __tablename__ = 'events'
-    extend_existing=True
+    extend_existing = True
 
     id = Column(Integer, primary_key=True)
     type_id = Column(Integer)
@@ -144,7 +150,7 @@ class Event(database.Model):
     key = Column(String(64))
     count = Column(Integer)
     star_system_id = Column(Integer, ForeignKey('star_logs.id'))
-    
+
     def __repr__(self):
         return '<Event %s>' % self.id
 
@@ -155,12 +161,13 @@ class Event(database.Model):
         self.count = count
         self.star_system_id = star_system_id
 
-    def getJson(self):
-        return { 'key': self.key }
+    def get_json(self):
+        return {'key': self.key}
+
 
 class EventSignature(database.Model):
     __tablename__ = 'event_signatures'
-    extend_existing=True
+    extend_existing = True
 
     id = Column(Integer, primary_key=True)
     type_id = Column(Integer)
@@ -181,21 +188,22 @@ class EventSignature(database.Model):
         self.time = time
         self.confirmations = confirmations
 
-    def getJson(self, fleetHash, fleetKey, inputs, outputs, index):
+    def get_json(self, fleet_hash, fleet_key, inputs, outputs, index):
         return {
             'index': index,
-            'type': util.getEventTypeName(self.type_id),
-            'fleet_hash': fleetHash,
-            'fleet_key': fleetKey,
+            'type': util.get_event_type_name(self.type_id),
+            'fleet_hash': fleet_hash,
+            'fleet_key': fleet_key,
             'inputs': inputs,
             'outputs': outputs,
             'hash': self.hash,
             'signature': self.signature
         }
 
+
 class EventInput(database.Model):
     __tablename__ = 'event_inputs'
-    extend_existing=True
+    extend_existing = True
 
     id = Column(Integer, primary_key=True)
     event_id = Column(Integer, ForeignKey('events.id'))
@@ -210,15 +218,16 @@ class EventInput(database.Model):
         self.event_signature_id = event_signature_id
         self.index = index
 
-    def getJson(self, key):
+    def get_json(self, key):
         return {
             'index': self.index,
             'key': key
         }
 
+
 class EventOutput(database.Model):
     __tablename__ = 'event_outputs'
-    extend_existing=True
+    extend_existing = True
 
     id = Column(Integer, primary_key=True)
     event_id = Column(Integer, ForeignKey('events.id'))
@@ -233,19 +242,20 @@ class EventOutput(database.Model):
         self.event_signature_id = event_signature_id
         self.index = index
 
-    def getJson(self, typeName, fleetHash, key, starSystem, count):
-        return { 
+    def get_json(self, type_name, fleet_hash, key, star_system, count):
+        return {
             'index': self.index,
-            'type': typeName,
-            'fleet_hash': fleetHash,
+            'type': type_name,
+            'fleet_hash': fleet_hash,
             'key': key,
-            'star_system': starSystem,
+            'star_system': star_system,
             'count': count
         }
 
+
 class StarLogEventSignature(database.Model):
     __tablename__ = 'star_log_event_signatures'
-    extend_existing=True
+    extend_existing = True
 
     id = Column(Integer, primary_key=True)
     event_signature_id = Column(Integer, ForeignKey('event_signatures.id'))
@@ -260,5 +270,5 @@ class StarLogEventSignature(database.Model):
         self.star_log_id = star_log_id
         self.index = index
 
-    def getJson(self):
+    def get_json(self):
         return {}
