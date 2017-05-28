@@ -4,10 +4,6 @@ import os
 import json
 from flask import Flask, request
 
-STARLOGS_MAX_LIMIT = int(os.getenv('STARLOGS_MAX_LIMIT', '10'))
-EVENTS_MAX_LIMIT = int(os.getenv('EVENTS_MAX_LIMIT', '10'))
-CHAINS_MAX_LIMIT = int(os.getenv('CHAINS_MAX_LIMIT', '10'))
-
 app = Flask(__name__)
 app.debug = 0 < os.getenv('CV_DEBUG', 0)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DB_HOST', 'sqlite:///service.db')
@@ -48,9 +44,9 @@ def get_rules():
         'jump_cost_min': util.jumpCostMinimum(),
         'jump_cost_max': util.jumpCostMaximum(),
         'jump_distance_max': util.jumpDistanceMaximum(),
-        'star_logs_max_limit': STARLOGS_MAX_LIMIT,
-        'events_max_limit': EVENTS_MAX_LIMIT,
-        'chains_max_limit': CHAINS_MAX_LIMIT
+        'star_logs_max_limit': util.starLogsMaxLimit(),
+        'events_max_limit': util.eventsMaxLimit(),
+        'chains_max_limit': util.chainsMaxLimit()
     })
 
 
@@ -67,7 +63,7 @@ def get_chains():
             if height < 0:
                 raise ValueError('height is out of range')
             query = query.filter_by(height=height)
-        if CHAINS_MAX_LIMIT < limit:
+        if util.chainsMaxLimit() < limit:
             raise ValueError('limit greater than maximum allowed')
         query = query.limit(limit)
         matches = query.all()
@@ -124,7 +120,7 @@ def get_star_logs():
             query = query.filter(since_time < StarLog.time)
         if since_time is not None and before_time is not None and before_time < since_time:
             raise ValueError('since_time is greater than before_time')
-        if STARLOGS_MAX_LIMIT < limit:
+        if util.starLogsMaxLimit() < limit:
             raise ValueError('limit greater than maximum allowed')
         if offset is not None:
             query = query.offset(offset)
@@ -398,7 +394,7 @@ def get_events():
     try:
         limit = request.args.get('limit', 1, type=int)
 
-        if EVENTS_MAX_LIMIT < limit:
+        if util.eventsMaxLimit() < limit:
             raise ValueError('limit greater than maximum allowed')
 
         # Don't get reward event signatures, since they'll always be associated with an existing block.
