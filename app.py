@@ -340,6 +340,8 @@ def post_star_logs():
                 target_output = None
                 event_output = None
                 if new_signature:
+                    if session.query(Event).filter_by(key=current_output['key']).first():
+                        raise Exception('output key %s already exists' % current_output['key'])
                     output_fleet = session.query(Fleet).filter_by(hash=current_output['fleet_hash']).first()
                     if output_fleet is None:
                         output_fleet = Fleet(current_output['fleet_hash'], None)
