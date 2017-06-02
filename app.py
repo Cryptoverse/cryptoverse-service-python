@@ -375,7 +375,21 @@ def post_star_logs():
             elif current_event['type'] not in ['reward']:
                 raise Exception('event type %s not supported' % current_event['type'])
 
-        star_log = StarLog(star_log_json['hash'], chain_index.id, height, len(request.data), star_log_json['log_header'], star_log_json['version'], star_log_json['previous_hash'], star_log_json['difficulty'], star_log_json['nonce'], star_log_json['time'], star_log_json['events_hash'], interval_id)
+        star_log = StarLog(
+            star_log_json['hash'], 
+            chain_index.id, height, 
+            len(request.data), 
+            star_log_json['log_header'], 
+            star_log_json['version'], 
+            star_log_json['previous_hash'], 
+            star_log_json['difficulty'], 
+            star_log_json['nonce'], 
+            star_log_json['time'], 
+            star_log_json['events_hash'], 
+            interval_id, 
+            star_log_json['meta'],
+            star_log_json['meta_hash']
+        )
         session.add(star_log)
         session.flush()
         for entry in needs_star_log_ids:

@@ -23,11 +23,13 @@ class StarLog(database.Model):
     time = Column(Integer)
     events_hash = Column(String(64))
     interval_id = Column(Integer, ForeignKey('star_logs.id'))
+    meta = Column(String(255))
+    meta_hash = Column(String(64))
 
     def __repr__(self):
         return '<StarLog %r>' % self.hash
 
-    def __init__(self, hash, chain_index_id, height, size, log_header, version, previous_hash, difficulty, nonce, time, events_hash, interval_id):
+    def __init__(self, hash, chain_index_id, height, size, log_header, version, previous_hash, difficulty, nonce, time, events_hash, interval_id, meta, meta_hash):
         self.hash = hash
         self.chain_index_id = chain_index_id
         self.height = height
@@ -40,12 +42,16 @@ class StarLog(database.Model):
         self.time = time
         self.events_hash = events_hash
         self.interval_id = interval_id
+        self.meta = meta
+        self.meta_hash = meta_hash
 
     def get_json(self, events):
         return {
             'create_time': self.time,
             'hash': self.hash,
             'height': self.height,
+            'meta': self.meta,
+            'meta_hash': self.meta_hash,
             'log_header': self.log_header,
             'version': self.version,
             'previous_hash': self.previous_hash,
