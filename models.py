@@ -278,3 +278,37 @@ class StarLogEventSignature(database.Model):
 
     def get_json(self):
         return {}
+
+
+class EventType(database.Model):
+    __tablename__ = 'event_types'
+    extend_existing = True
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(16))
+
+    def __repr__(self):
+        return '<Starlog Event Type %s>' % self.id
+
+    def __init__(self, name):
+        self.name = name
+
+    def get_json(self):
+        return {}
+
+def initialize_models():
+    session = database.session()
+    try:
+        default_types = [
+            'reward',
+            'jump',
+            'attack',
+            'transfer'
+        ]
+        for existing in session.query(EventType).all():
+            default_types.remove(existing.name)
+        for current_type in default_types:
+            session.add(EventType(current_type))
+        session.commit()
+    finally:
+        session.close()

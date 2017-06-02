@@ -12,7 +12,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DB_HOST', 'sqlite:///service.
 import util
 import validate
 import verify
-from models import database, StarLog, Fleet, Chain, ChainIndex, Event, EventSignature, EventInput, EventOutput, StarLogEventSignature
+from models import database, initialize_models, StarLog, Fleet, Chain, ChainIndex, Event, EventSignature, EventInput, EventOutput, StarLogEventSignature
 
 database.app = app
 database.init_app(app)
@@ -504,4 +504,5 @@ def post_events():
 if __name__ == '__main__':
     if 0 < util.difficultyFudge():
         app.logger.info('All hash difficulties will be calculated with DIFFICULTY_FUDGE %s' % (util.difficultyFudge()))
+    initialize_models()
     app.run(use_reloader=False)
