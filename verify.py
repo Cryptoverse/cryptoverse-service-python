@@ -1,84 +1,115 @@
 import util
 from models import StarLog
 
+
 def jump(session, fleet, inputs, outputs):
-	if len(inputs) == 0:
-		raise Exception('jump must contain at least one input')
-	if len(outputs) == 0:
-		raise Exception('jump must contain at least oun output')
-	inputShipCount = 0
-	originSystemId = inputs[0].star_system_id
-	for currentInput in inputs:
-		if currentInput.fleet_id != fleet.id:
-			raise Exception('jump must consist of ships from a single fleet')
-		if currentInput.star_system_id != originSystemId:
-			raise Exception('jump inputs must start from the same origin')
-		inputShipCount += currentInput.count
-	outputShipCount = 0
-	destinationSystemId = None
-	for currentOutput in outputs:
-		if currentOutput.star_system_id != originSystemId:
-			destinationSystemId = currentOutput.star_system_id
-			break
-	if destinationSystemId is None:
-		raise Exception('jump must consist of at least one output in another system')
-	for currentOutput in outputs:
-		if currentOutput.fleet_id != fleet.id:
-			raise Exception('jump must consist of ships from a single fleet')
-		if currentOutput.star_system_id == originSystemId:
-			inputShipCount -= currentOutput.count
-		elif currentOutput.star_system_id == destinationSystemId:
-			outputShipCount += currentOutput.count
-		else:
-			raise Exception('jump outputs must end in the same origin or destination')
-	originSystem = session.query(StarLog).filter_by(id=originSystemId).first()
-	destinationSystem = session.query(StarLog).filter_by(id=destinationSystemId).first()
-	shipCost = util.getJumpCost(originSystem.hash, destinationSystem.hash, inputShipCount)
-	if shipCost == inputShipCount:
-		raise Exception('jump cannot have zero ships reach destination')
-	if shipCost != (inputShipCount - outputShipCount):
-		raise Exception('jump cost does not match expected cost of %s' % shipCost)
+    if len(inputs) == 0:
+        raise Exception('jump must contain at least one input')
+    if len(outputs) == 0:
+        raise Exception('jump must contain at least oun output')
+    input_ship_count = 0
+    origin_system_id = inputs[0].star_system_id
+    for current_input in inputs:
+        if current_input.fleet_id != fleet.id:
+            raise Exception('jump must consist of ships from a single fleet')
+        if current_input.star_system_id != origin_system_id:
+            raise Exception('jump inputs must start from the same origin')
+        input_ship_count += current_input.count
+    output_ship_count = 0
+    destination_system_id = None
+    for current_output in outputs:
+        if current_output.star_system_id != origin_system_id:
+            destination_system_id = current_output.star_system_id
+            break
+    if destination_system_id is None:
+        raise Exception('jump must consist of at least one output in another system')
+    for current_output in outputs:
+        if current_output.fleet_id != fleet.id:
+            raise Exception('jump must consist of ships from a single fleet')
+        if current_output.star_system_id == origin_system_id:
+            input_ship_count -= current_output.count
+        elif current_output.star_system_id == destination_system_id:
+            output_ship_count += current_output.count
+        else:
+            raise Exception('jump outputs must end in the same origin or destination')
+    origin_system = session.query(StarLog).filter_by(id=origin_system_id).first()
+    destination_system = session.query(StarLog).filter_by(id=destination_system_id).first()
+    ship_cost = util.get_jump_cost(origin_system.hash, destination_system.hash, input_ship_count)
+    if ship_cost == input_ship_count:
+        raise Exception('jump cannot have zero ships reach destination')
+    if ship_cost != (input_ship_count - output_ship_count):
+        raise Exception('jump cost does not match expected cost of %s' % ship_cost)
+
 
 def attack(fleet, inputs, outputs):
-	if len(inputs) < 2:
-		raise Exception('jump must contain at least two inputs')
-	
-	shipCount = 0
-	enemyShipCount = 0
-	originSystemId = inputs[0].star_system_id
-	enemyFleetId = None
-	for currentInput in inputs:
-		if currentInput.star_system_id != originSystemId:
-			raise Exception('attack inputs must be from the same origin')
-		if currentInput.fleet_id == fleet.id:
-			shipCount += currentInput.count
-		else:
-			if enemyFleetId is None:
-				enemyFleetId = currentInput.fleet_id
-			elif enemyFleetId != currentInput.fleet_id:
-				raise Exception('an attack may only consist of two fleets')
-			enemyShipCount += currentInput.count
-		
-	outputShipCount = 0
-	outputEnemyShipCount = 0
-	for currentOutput in outputs:
-		if currentOutput.count == 0:
-			raise Exception('attack output cannot be zero')
-		if currentOutput.star_system_id != originSystemId:
-			raise Exception('attack outputs must be in the same origin')
-		if currentOutput.fleet_id == fleet.id:
-			outputShipCount += currentOutput.count
-		elif currentOutput.fleet_id == enemyFleetId:
-			outputEnemyShipCount += currentOutput.count
-		else:
-			raise Exception('an attack output must be from the original fleets')
-	
-	if shipCount < enemyShipCount:
-		if enemyShipCount - shipCount != outputEnemyShipCount:
-			raise Exception('attack input and output count mismatch')
-	elif enemyShipCount < shipCount:
-		if shipCount - enemyShipCount != outputShipCount:
-			raise Exception('attack input and output count mismatch')
-	elif outputShipCount + outputEnemyShipCount != 0:
-		raise Exception('attack input and output count mismatch')
-	
+    if len(inputs) < 2:
+        raise Exception('jump must contain at least two inputs')
+    
+    ship_count = 0
+    enemy_ship_count = 0
+    origin_system_id = inputs[0].star_system_id
+    enemy_fleet_id = None
+    for current_input in inputs:
+        if current_input.star_system_id != origin_system_id:
+            raise Exception('attack inputs must be from the same origin')
+        if current_input.fleet_id == fleet.id:
+            ship_count += current_input.count
+        else:
+            if enemy_fleet_id is None:
+                enemy_fleet_id = current_input.fleet_id
+            elif enemy_fleet_id != current_input.fleet_id:
+                raise Exception('an attack may only consist of two fleets')
+            enemy_ship_count += current_input.count
+        
+    output_ship_count = 0
+    output_enemy_ship_count = 0
+    for current_output in outputs:
+        if current_output.count == 0:
+            raise Exception('attack output cannot be zero')
+        if current_output.star_system_id != origin_system_id:
+            raise Exception('attack outputs must be in the same origin')
+        if current_output.fleet_id == fleet.id:
+            output_ship_count += current_output.count
+        elif current_output.fleet_id == enemy_fleet_id:
+            output_enemy_ship_count += current_output.count
+        else:
+            raise Exception('an attack output must be from the original fleets')
+    
+    if ship_count < enemy_ship_count:
+        if enemy_ship_count - ship_count != output_enemy_ship_count:
+            raise Exception('attack input and output count mismatch')
+    elif enemy_ship_count < ship_count:
+        if ship_count - enemy_ship_count != output_ship_count:
+            raise Exception('attack input and output count mismatch')
+    elif output_ship_count + output_enemy_ship_count != 0:
+        raise Exception('attack input and output count mismatch')
+
+
+def transfer(fleet, inputs, outputs):
+    if len(inputs) < 1:
+        raise Exception('transfer must contain at least one input')
+    
+    # [ [system_id, input_count, output_count] ]
+    systems = []
+    for current_input in inputs:
+        if fleet.id != current_input.fleet_id:
+            raise Exception('a transfer must be from the original fleet')
+        existing = [x for x in systems if x[0] == current_input.star_system_id]
+        if existing:
+            existing[0][1] += current_input.count
+        else:
+            systems.append([current_input.star_system_id, current_input.count, 0])
+    accounted_systems = 0
+    for current_output in outputs:
+        existing = [x for x in systems if x[0] == current_output.star_system_id]
+        if existing is None:
+            raise Exception('transfers must occur within systems, and cannot be transfered to new ones')
+        existing = existing[0]
+        existing[2] += current_output.count
+        if existing[1] == existing[2]:
+            # An input and output count have matched up
+            accounted_systems += 1
+        elif existing[1] < existing[2]:
+            raise Exception('a transfer output for a system exceeds its inputs')
+    if accounted_systems != len(systems):
+        raise Exception('some systems did not have a matching number of inputs and ouputs')
