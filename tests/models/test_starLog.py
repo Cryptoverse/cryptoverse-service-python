@@ -27,6 +27,8 @@ class TestStarLog(object):
                     1496510257,
                     "a4c0eaed4cd7bf6c4283401d7cfdfd193"
                     "690bb6c01c87c7711d9ff6e49edf702",
+                    0,
+                    0,
                     0)
         session.add(s)
         session.commit()
@@ -54,6 +56,8 @@ class TestStarLog(object):
                     1496510257,
                     "a4c0eaed4cd7bf6c4283401d7cfdfd19"
                     "3690bb6c01c87c7711d9ff6e49edf702",
+                    0,
+                    0,
                     0)
         session.add(s)
         session.commit()

@@ -77,13 +77,15 @@ EVENT_TYPES = [
     'unknown',
     'reward',
     'jump',
-    'attack'
+    'attack',
+    'transfer'
 ]
 
 SHIP_EVENT_TYPES = [
     'reward',
     'jump',
-    'attack'
+    'attack',
+    'transfer'
 ]
 
 def get_maximum_target():
@@ -239,7 +241,7 @@ def concat_star_log_header(star_log, include_nonce=True):
     Returns:
         str: Resulting header.
     """
-    return '%s%s%s%s%s%s' % (star_log['version'], star_log['previous_hash'], star_log['difficulty'], star_log['events_hash'], star_log['time'], star_log['nonce'] if include_nonce else '')
+    return '%s%s%s%s%s%s%s' % (star_log['version'], star_log['previous_hash'], star_log['difficulty'], star_log['events_hash'], star_log['meta_hash'], star_log['time'], star_log['nonce'] if include_nonce else '')
 
 
 def concat_event(event_json):
@@ -303,7 +305,7 @@ def hash_star_log(star_log):
         star_log (dict): Json data for the star log to be hashed.
     
     Returns:
-        str: Supplied star log with its `events_hash`, `log_header`, and `hash` fields calculated.
+        dict: Supplied star log with its `events_hash`, `log_header`, and `hash` fields calculated.
     """
     star_log['events_hash'] = hash_events(star_log['events'])
     star_log['log_header'] = concat_star_log_header(star_log)
@@ -509,7 +511,7 @@ def get_cartesian(system_hash):
         system_hash (str): The system's Sha256 hash.
     
     Returns:
-        array: A list containing the (x, y, z) position.
+        numpy.array: A list containing the (x, y, z) position.
     """
     cartesian_hash = sha256('%s%s' % ('cartesian', system_hash))
     digits = cartesianDigits()

@@ -87,11 +87,15 @@ def star_log(star_log_json):
         raise Exception('events_hash is not a string')
     if star_log_json['events'] is None:
         raise Exception('events is missing')
+    if star_log_json['meta_hash'] is None:
+        raise Exception('meta_hash is missing')
 
     field_is_sha256(star_log_json['hash'], 'hash')
     field_is_sha256(star_log_json['previous_hash'], 'previous_hash')
     field_is_sha256(star_log_json['events_hash'], 'events_hash')
+    field_is_sha256(star_log_json['meta_hash'], 'meta_hash')
     sha256(star_log_json['hash'], util.concat_star_log_header(star_log_json), 'log_header')
+    sha256(star_log_json['meta_hash'], star_log_json['meta'], 'meta')
     if not star_log_json['events_hash'] == util.hash_events(star_log_json['events']):
         raise Exception('events_hash does not match actual hash')
     difficulty(star_log_json['difficulty'], star_log_json['hash'])
@@ -148,6 +152,16 @@ def events(events_json):
                                     'zero or less ships')
                 if current_output['type'] != 'attack':
                     raise Exception('attack outputs must be of type "attack"')
+        elif current_event['type'] == 'transfer':
+            if len(current_event['inputs']) < 1:
+                raise Exception('transfer events need at least one input')
+            if len(current_event['outputs']) < len(current_event['inputs']):
+                raise Exception('transfers cannot have more inputs than outputs')
+            for current_output in current_event['outputs']:
+                if current_output['count'] <= 0:
+                    raise Exception('transfer events cannot output zero or less ships')
+                if current_output['type'] != 'transfer':
+                    raise Exception('transfer outputs must be of type "transfer"')
         else:
             raise ValueError('unrecognized event of type '
                              '%s' % current_event['type'])
@@ -193,7 +207,7 @@ def event(event_json,
 
     if not reward_allowed and event_json['type'] == 'reward':
         raise Exception('event of type %s forbidden' % event_json['type'])
-    if event_json['type'] not in ['reward', 'jump', 'attack']:
+    if event_json['type'] not in ['reward', 'jump', 'attack', 'transfer']:
         raise Exception('unrecognized event of type %s' % event_json['type'])
 
     input_indices = []
@@ -318,8 +332,3 @@ def difficulty_unpacked(unpacked_stripped,
             raise Exception('Hash is greater than packed target')
     except:
         raise Exception('Unable to cast to int from hexidecimal')
-
-
-def lost_count(count, lost_count, origin_hash, destination_hash):
-    # TODO: check the lost count is correct
-    pass

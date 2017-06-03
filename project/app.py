@@ -1,18 +1,17 @@
-import json
+import traceback
 import logging
 import os
-import traceback
-
-from flask import request
-
-import factory
+import json
+from flask import Flask, request
 
 # TODO: Do these still need to be separated from the rest of the imports?
 import util
 import validate
 import verify
-from models import database, StarLog, Fleet, Chain, ChainIndex, Event,\
-    EventSignature, EventInput, EventOutput, StarLogEventSignature
+from models import database, initialize_models, StarLog, Fleet, Chain, \
+    ChainIndex, Event, EventSignature, EventInput, EventOutput, \
+    StarLogEventSignature
+import factory
 
 app = factory.create_app({})
 app.debug = 0 < os.getenv('CV_DEBUG', 0)
@@ -376,6 +375,8 @@ def post_star_logs():
                 target_output = None
                 event_output = None
                 if new_signature:
+                    if session.query(Event).filter_by(key=current_output['key']).first():
+                        raise Exception('output key %s already exists' % current_output['key'])
                     output_fleet = session.query(Fleet).filter_by(hash=current_output['fleet_hash']).first()
                     if output_fleet is None:
                         output_fleet = Fleet(current_output['fleet_hash'], None)
@@ -404,10 +405,26 @@ def post_star_logs():
                 verify.jump(session, fleet, inputs, outputs)
             elif current_event['type'] == 'attack':
                 verify.attack(fleet, inputs, outputs)
+            elif current_event['type'] == 'transfer':
+                verify.transfer(fleet, inputs, outputs)
             elif current_event['type'] not in ['reward']:
                 raise Exception('event type %s not supported' % current_event['type'])
 
-        star_log = StarLog(star_log_json['hash'], chain_index.id, height, len(request.data), star_log_json['log_header'], star_log_json['version'], star_log_json['previous_hash'], star_log_json['difficulty'], star_log_json['nonce'], star_log_json['time'], star_log_json['events_hash'], interval_id)
+        star_log = StarLog(
+            star_log_json['hash'], 
+            chain_index.id, height, 
+            len(request.data), 
+            star_log_json['log_header'], 
+            star_log_json['version'], 
+            star_log_json['previous_hash'], 
+            star_log_json['difficulty'], 
+            star_log_json['nonce'], 
+            star_log_json['time'], 
+            star_log_json['events_hash'], 
+            interval_id, 
+            star_log_json['meta'],
+            star_log_json['meta_hash']
+        )
         session.add(star_log)
         session.flush()
         for entry in needs_star_log_ids:
@@ -511,6 +528,8 @@ def post_events():
             verify.jump(session, fleet, inputs, outputs)
         elif event_json['type'] == 'attack':
             verify.attack(fleet, inputs, outputs)
+        elif event_json['type'] == 'transfer':
+            verify.transfer(fleet, inputs, outputs)
         else:
             raise Exception('event type %s not supported' % event_json['type'])
 
@@ -525,6 +544,6 @@ def post_events():
 
 if __name__ == '__main__':
     if 0 < util.difficultyFudge():
-        app.logger.info('All hash difficulties will be calculated with'
-                        ' DIFFICULTY_FUDGE %s' % (util.difficultyFudge()))
+        app.logger.info('All hash difficulties will be calculated with DIFFICULTY_FUDGE %s' % (util.difficultyFudge()))
+    initialize_models()
     app.run(use_reloader=False)

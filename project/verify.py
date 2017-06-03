@@ -91,3 +91,33 @@ def attack(fleet, inputs, outputs):
             raise Exception('attack input and output count mismatch')
     elif output_ship_count + output_enemy_ship_count != 0:
         raise Exception('attack input and output count mismatch')
+
+
+def transfer(fleet, inputs, outputs):
+    if len(inputs) < 1:
+        raise Exception('transfer must contain at least one input')
+    
+    # [ [system_id, input_count, output_count] ]
+    systems = []
+    for current_input in inputs:
+        if fleet.id != current_input.fleet_id:
+            raise Exception('a transfer must be from the original fleet')
+        existing = [x for x in systems if x[0] == current_input.star_system_id]
+        if existing:
+            existing[0][1] += current_input.count
+        else:
+            systems.append([current_input.star_system_id, current_input.count, 0])
+    accounted_systems = 0
+    for current_output in outputs:
+        existing = [x for x in systems if x[0] == current_output.star_system_id]
+        if existing is None:
+            raise Exception('transfers must occur within systems, and cannot be transfered to new ones')
+        existing = existing[0]
+        existing[2] += current_output.count
+        if existing[1] == existing[2]:
+            # An input and output count have matched up
+            accounted_systems += 1
+        elif existing[1] < existing[2]:
+            raise Exception('a transfer output for a system exceeds its inputs')
+    if accounted_systems != len(systems):
+        raise Exception('some systems did not have a matching number of inputs and ouputs')

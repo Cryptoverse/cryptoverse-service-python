@@ -59,6 +59,8 @@ class StarLog(database.Model):
     time = Column(Integer)
     events_hash = Column(String(64))
     interval_id = Column(Integer, ForeignKey('star_logs.id'))
+    meta = Column(String(255))
+    meta_hash = Column(String(64))
 
     def __repr__(self):
         return '<StarLog %r>' % self.hash
@@ -75,7 +77,9 @@ class StarLog(database.Model):
                  nonce,
                  time,
                  events_hash,
-                 interval_id):
+                 interval_id,
+                 meta,
+                 meta_hash):
         self.hash = hash
         self.chain_index_id = chain_index_id
         self.height = height
@@ -88,12 +92,16 @@ class StarLog(database.Model):
         self.time = time
         self.events_hash = events_hash
         self.interval_id = interval_id
+        self.meta = meta
+        self.meta_hash = meta_hash
 
     def get_json(self, events):
         return {
             'create_time': self.time,
             'hash': self.hash,
             'height': self.height,
+            'meta': self.meta,
+            'meta_hash': self.meta_hash,
             'log_header': self.log_header,
             'version': self.version,
             'previous_hash': self.previous_hash,
@@ -334,3 +342,37 @@ class StarLogEventSignature(database.Model):
 
     def get_json(self):
         return {}
+
+
+class EventType(database.Model):
+    __tablename__ = 'event_types'
+    extend_existing = True
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(16))
+
+    def __repr__(self):
+        return '<Starlog Event Type %s>' % self.id
+
+    def __init__(self, name):
+        self.name = name
+
+    def get_json(self):
+        return {}
+
+def initialize_models():
+    session = database.session()
+    try:
+        default_types = [
+            'reward',
+            'jump',
+            'attack',
+            'transfer'
+        ]
+        for existing in session.query(EventType).all():
+            default_types.remove(existing.name)
+        for current_type in default_types:
+            session.add(EventType(current_type))
+        session.commit()
+    finally:
+        session.close()
