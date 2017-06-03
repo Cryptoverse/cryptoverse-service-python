@@ -1,10 +1,12 @@
-import re
 import binascii
+import re
+
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
+
 import util
 
 
@@ -20,18 +22,22 @@ def field_is_sha256(sha, field_name=None):
         sha (str): Hash to verify.
     """
     if not re.match(r'^[A-Fa-f0-9]{64}$', sha):
-        raise Exception('Field is not a hash' if field_name is None else 'Field %s is not a hash' % field_name)
+        raise Exception('Field is not a hash' if field_name is None
+                        else 'Field %s is not a hash' % field_name)
 
 
 def rsa(public_key, signature, message):
     """Verifies an RSA signature.
     Args:
         public_key (str): Public key with BEGIN and END sections.
-        signature (str): Hex value of the signature with its leading 0x stripped.
+        signature (str): Hex value of the signature with
+        its leading 0x stripped.
         message (str): Message that was signed, unhashed.
     """
     try:
-        public_rsa = load_pem_public_key(bytes(public_key), backend=default_backend())
+        public_rsa = load_pem_public_key(bytes(public_key),
+                                         backend=default_backend()
+                                         )
         hashed = util.sha256(message)
         public_rsa.verify(
             binascii.unhexlify(signature),
@@ -122,11 +128,13 @@ def events(events_json):
                 raise Exception('jump events cannot have zero outputs')
             if 2 < output_length:
                 raise Exception('jump events cannot have more than 2 outputs')
-            if 2 == output_length and current_event['outputs'][0]['star_system'] == current_event['outputs'][1]['star_system']:
+            if 2 == output_length and \
+                current_event['outputs'][0]['star_system'] == current_event['outputs'][1]['star_system']:
                 raise Exception('jump event cannot split in new system')
             for current_output in current_event['outputs']:
                 if current_output['count'] <= 0:
-                    raise Exception('jump events cannot jump zero or less ships')
+                    raise Exception('jump events cannot jump '
+                                    'zero or less ships')
                 if current_output['type'] != 'jump':
                     raise Exception('jump outputs must be of type "jump"')
         elif current_event['type'] == 'attack':
@@ -136,31 +144,39 @@ def events(events_json):
                 raise Exception('attacks cannot have more outputs than inputs')
             for current_output in current_event['outputs']:
                 if current_output['count'] <= 0:
-                    raise Exception('attack events cannot outputs zero or less ships')
+                    raise Exception('attack events cannot outputs '
+                                    'zero or less ships')
                 if current_output['type'] != 'attack':
                     raise Exception('attack outputs must be of type "attack"')
         else:
-            raise ValueError('unrecognized event of type %s' % current_event['type'])
+            raise ValueError('unrecognized event of type '
+                             '%s' % current_event['type'])
 
         for current_input in current_event['inputs']:
             key = current_input['key']
             if key in input_keys:
-                raise Exception('event input key %s is listed more than once' % key)
+                raise Exception('event input key %s '
+                                'is listed more than once' % key)
             input_keys.append(key)
         for current_output in current_event['outputs']:
             key = current_output['key']
             if key in output_keys:
-                raise Exception('event output key %s is listed more than once' % key)
+                raise Exception('event output key %s '
+                                'is listed more than once' % key)
             output_keys.append(key)
 
 
-def event(event_json, require_index=True, require_star_system=False, reward_allowed=True):
+def event(event_json,
+          require_index=True,
+          require_star_system=False,
+          reward_allowed=True):
     """Verifies the fields of an event.
 
     Args:
         event_json (dict): Target.
         require_index (bool): Verifies an integer index is included if True.
-        require_star_system (bool): Verifies that every output specifies a star system if True.
+        require_star_system (bool): Verifies that every output specifies a
+        star system if True.
     """
     if not isinstance(event_json['type'], basestring):
         raise Exception('type is not a string')
@@ -201,7 +217,9 @@ def event(event_json, require_index=True, require_star_system=False, reward_allo
 
     field_is_sha256(event_json['fleet_hash'], 'fleet_hash')
     sha256(event_json['fleet_hash'], event_json['fleet_key'], 'fleet_key')
-    rsa(util.expand_rsa_public_key(event_json['fleet_key']), event_json['signature'], event_json['hash'])
+    rsa(util.expand_rsa_public_key(event_json['fleet_key']),
+        event_json['signature'],
+        event_json['hash'])
 
 
 def event_input(input_json):
@@ -250,16 +268,20 @@ def event_rsa(event_json):
         event_json (dict): Event to validate.
     """
     try:
-        rsa(util.expand_rsa_public_key(event_json['fleet_key']), event_json['signature'], util.concat_event(event_json))
+        rsa(util.expand_rsa_public_key(event_json['fleet_key']),
+            event_json['signature'],
+            util.concat_event(event_json))
     except InvalidSignature:
         raise Exception('Invalid RSA signature')
 
 
 def difficulty(packed, sha, validate_params=True):
-    """Takes the integer form of difficulty and verifies that the hash is less than it.
+    """Takes the integer form of difficulty and verifies that the hash is
+     less than it.
 
     Args:
-        packed (int): Packed target difficulty the provided SHA256 hash must meet.
+        packed (int): Packed target difficulty the provided
+        SHA256 hash must meet.
         sha (str): Hex target to test, stripped of its leading 0x.
     """
     if validate_params:
@@ -272,11 +294,16 @@ def difficulty(packed, sha, validate_params=True):
     difficulty_unpacked(mask, leading_zeros, sha, validate_params)
 
 
-def difficulty_unpacked(unpacked_stripped, leading_zeros, sha, validate_params=True):
-    """Takes the unpacked form of difficulty and verifies that the hash is less than it.
+def difficulty_unpacked(unpacked_stripped,
+                        leading_zeros,
+                        sha,
+                        validate_params=True):
+    """Takes the unpacked form of difficulty and verifies that the hash
+     is less than it.
 
     Args:
-        unpacked_stripped (str): Unpacked target difficulty the provided SHA256 hash must meet.
+        unpacked_stripped (str): Unpacked target difficulty the
+        provided SHA256 hash must meet.
         sha (str): Hex target to test, stripped of its leading 0x.
     """
     if validate_params:

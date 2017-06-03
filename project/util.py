@@ -10,38 +10,68 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
+
 def difficultyFudge():
     return int(os.getenv('DIFFICULTY_FUDGE', '0'))
+
+
 def difficultyInterval():
     return int(os.getenv('DIFFICULTY_INTERVAL', '10080'))
+
+
 def difficultyDuration():
     return int(os.getenv('DIFFICULTY_DURATION', '1209600'))
+
+
 def difficultyStart():
     return int(os.getenv('DIFFICULTY_START', '486604799'))
+
+
 def shipReward():
     return int(os.getenv('SHIP_REWARD', '10'))
+
+
 def maximumStarLogSize():
     return int(os.getenv('STARLOGS_MAX_BYTES', '999999'))
+
+
 def maximumEventSize():
     return int(os.getenv('EVENTS_MAX_BYTES', '999999'))
+
+
 def cartesianDigits():
     return int(os.getenv('CARTESIAN_DIGITS', '3'))
+
+
 def jumpCostMinimum():
     return float(os.getenv('JUMP_COST_MIN', '0.01'))
+
+
 def jumpCostMaximum():
     return float(os.getenv('JUMP_COST_MAX', '1.0'))
+
+
 def jumpDistanceMaximum():
     return float(os.getenv('JUMP_DIST_MAX', '2048.0'))
+
+
 def starLogsMaxLimit():
     return int(os.getenv('STARLOGS_MAX_LIMIT', '10'))
+
+
 def eventsMaxLimit():
     return int(os.getenv('EVENTS_MAX_LIMIT', '10'))
+
+
 def chainsMaxLimit():
     return int(os.getenv('CHAINS_MAX_LIMIT', '10'))
 
+
 MAXIMUM_NONCE = 2147483647
-MAXIMUM_TARGET = '00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
-EMPTY_TARGET = '0000000000000000000000000000000000000000000000000000000000000000'
+MAXIMUM_TARGET = '00000000ffffffffffffffffffffffff' \
+                 'ffffffffffffffffffffffffffffffff'
+EMPTY_TARGET = '00000000000000000000000000000000' \
+               '00000000000000000000000000000000'
 
 EVENT_TYPES = [
     'unknown',
@@ -553,11 +583,9 @@ def get_system_name(system_hash, length=6):
 
 def get_shortened_hash(sha, length=6, strip_zeros=True):
     """Gets the human readable name for a hash.
-
     Args:
         sha (str): The Sha256 hash.
         length (int): The length of the shortened name.
-    
     Returns:
         str: The shortened name.
     """

@@ -1,9 +1,45 @@
-from flask_sqlalchemy import SQLAlchemy
+from flask_sqlalchemy import SQLAlchemy, SignallingSession, SessionBase
 from sqlalchemy import Column, Integer, String, ForeignKey
 
 import util
 
-database = SQLAlchemy()
+
+class _SignallingSession(SignallingSession):
+    """A subclass of `SignallingSession` that allows for `binds` to be specified
+    in the `options` keyword arguments.
+
+    """
+    def __init__(self, db, autocommit=False, autoflush=True, **options):
+        self.app = db.get_app()
+        self._model_changes = {}
+        self.emit_modification_signals = \
+            self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS']
+
+        bind = options.pop('bind', None)
+        if bind is None:
+            bind = db.engine
+
+        binds = options.pop('binds', None)
+        if binds is None:
+            binds = db.get_binds(self.app)
+
+        SessionBase.__init__(self,
+                             autocommit=autocommit,
+                             autoflush=autoflush,
+                             bind=bind,
+                             binds=binds,
+                             **options)
+
+
+class _SQLAlchemy(SQLAlchemy):
+    """A subclass of `SQLAlchemy` that uses `_SignallingSession`."""
+    def create_session(self, options):
+        return _SignallingSession(self, **options)
+
+
+database = _SQLAlchemy()
+
+# database = SQLAlchemy()
 
 
 class StarLog(database.Model):
@@ -27,7 +63,19 @@ class StarLog(database.Model):
     def __repr__(self):
         return '<StarLog %r>' % self.hash
 
-    def __init__(self, hash, chain_index_id, height, size, log_header, version, previous_hash, difficulty, nonce, time, events_hash, interval_id):
+    def __init__(self,
+                 hash,
+                 chain_index_id,
+                 height,
+                 size,
+                 log_header,
+                 version,
+                 previous_hash,
+                 difficulty,
+                 nonce,
+                 time,
+                 events_hash,
+                 interval_id):
         self.hash = hash
         self.chain_index_id = chain_index_id
         self.height = height
@@ -74,7 +122,15 @@ class ChainIndex(database.Model):
     def __repr__(self):
         return '<Chain Index %s>' % self.id
 
-    def __init__(self, root_id, previous_id, star_log_id, previous_star_log_id, hash, previous_hash, height, chain):
+    def __init__(self,
+                 root_id,
+                 previous_id,
+                 star_log_id,
+                 previous_star_log_id,
+                 hash,
+                 previous_hash,
+                 height,
+                 chain):
         self.root_id = root_id
         self.previous_id = previous_id
         self.star_log_id = star_log_id
@@ -180,7 +236,13 @@ class EventSignature(database.Model):
     def __repr__(self):
         return '<Event Signature %s>' % self.id
 
-    def __init__(self, type_id, fleet_id, hash, signature, time, confirmations):
+    def __init__(self,
+                 type_id,
+                 fleet_id,
+                 hash,
+                 signature,
+                 time,
+                 confirmations):
         self.type_id = type_id
         self.fleet_id = fleet_id
         self.hash = hash
