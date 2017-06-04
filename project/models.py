@@ -360,6 +360,7 @@ class EventType(database.Model):
     def get_json(self):
         return {}
 
+
 def initialize_models():
     session = database.session()
     try:
