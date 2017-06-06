@@ -88,6 +88,16 @@ SHIP_EVENT_TYPES = [
     'transfer'
 ]
 
+RESOURCE_TYPES = [
+    'fuel'
+]
+
+MODULE_TYPES = [
+    'hull',
+    'jump_drive',
+    'cargo'
+]
+
 def get_maximum_target():
     if difficultyFudge() == 0:
         return MAXIMUM_TARGET
@@ -259,8 +269,60 @@ def concat_event(event_json):
             concat += current_input['key']
     if event_json['outputs']:
         for current_output in sorted(event_json['outputs'], key=lambda x: x['index']):
-            concat += '%s%s%s%s%s' % (current_output['type'], current_output['fleet_hash'], current_output['key'], current_output['star_system'], current_output['count'])
+            concat += '%s%s%s%s' % (current_output['type'], current_output['fleet_hash'], current_output['key'], current_output['star_system'])
+            current_output_type = current_output['model_type']
+            if current_output_type == 'vessel':
+                concat += concat_vessel(current_output['model'])
+            else:
+                raise Exception('Unrecognized model type %s' % current_output_type)
     return concat
+
+def concat_vessel(vessel_json):
+    """Concats the information of a vessel from the provided json.
+
+    Args:
+        vessel_json (dict): Vessel to pull the information from.
+
+    Returns:
+        str: Resulting concatenated information of the vessel.
+    """
+    concat = vessel_json['blueprint']
+    for current_module in sorted(vessel_json['modules'], key=lambda x: x['index']):
+        concat += concat_module(current_module)
+    return concat
+
+def concat_module(module_json):
+    """Concats the information of a module from the provided json.
+
+    Args:
+        module_json (dict): Module to pull the information from.
+
+    Returns:
+        str: Resulting concatenated information of the module.
+    """
+    current_type = module_json['module_type']
+    concat = '%s%s%s%s' % (module_json['blueprint'], current_type, module_json['delta'], module_json['health'])
+    if current_type == 'cargo':
+        concat += concat_cargo(module_json)
+    elif current_type not in MODULE_TYPES:
+        raise Exception('Module of type %s not recognized' % current_type)
+    return concat
+
+
+def concat_cargo(cargo_json):
+    """Concats the information of a cargo module from the provided json.
+
+    Args:
+        cargo_json (dict): Cargo module to pull the information from.
+
+    Returns:
+        str: Resulting concatenated information of the cargo module.
+    """
+    for current_key in cargo_json['contents'].keys():
+        if current_key not in RESOURCE_TYPES:
+            raise Exception('Unrecognized resource type %s' % current_key)
+    fuel = cargo_json.get('fuel', 0)
+    return '%s' % fuel
 
 
 def expand_rsa_public_key(shrunk_public_key):

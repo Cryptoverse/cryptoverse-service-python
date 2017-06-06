@@ -1,8 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy, SignallingSession, SessionBase
-from sqlalchemy import Column, Integer, String, ForeignKey
-
+from sqlalchemy import Column, Integer, String, ForeignKey, Float
+from blueprints import DEFAULT_HULL, DEFAULT_CARGO, DEFAULT_JUMP_DRIVE
 import util
-
 
 class _SignallingSession(SignallingSession):
     """A subclass of `SignallingSession` that allows for `binds` to be specified
@@ -361,38 +360,209 @@ class EventType(database.Model):
         return {}
 
 
-class Hull(database.Model):
-    __tablename__ = 'hulls'
+class EventModelType(database.Model):
+    __tablename__ = 'event_model_types'
     extend_existing = True
 
     id = Column(Integer, primary_key=True)
-    blueprint_id = Column(Integer)
-    mass_limit = Column(Integer)
+    name = Column(String(16))
 
     def __repr__(self):
-        return '<Hull %s>' % self.id
+        return '<Model Type %s>' % self.id
 
-    def __init__(self, blueprint_id, mass_limit):
-        self.blueprint_id = blueprint_id
+    def __init__(self, name):
+        self.name = name
+
+    def get_json(self):
+        return {}
+
+class ModuleType(database.Model):
+    __tablename__ = 'module_types'
+    extend_existing = True
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(16))
+
+    def __repr__(self):
+        return '<Module Type %s>' % self.id
+
+    def __init__(self, name):
+        self.name = name
+
+    def get_json(self):
+        return {}
+
+class EventModel(database.Model):
+    __tablename__ = 'event_models'
+    extend_existing = True
+
+    id = Column(Integer, primary_key=True)
+    event_id = Column(Integer)
+    model_id = Column(Integer)
+    type_id = Column(Integer)
+
+    def __repr__(self):
+        return '<Event Model %s>' % self.id
+
+    def __init__(self, event_id, model_id, type_id):
+        self.event_id = event_id
+        self.model_id = model_id
+        self.type_id = type_id
+
+    def get_json(self):
+        return {}
+
+class HullBlueprint(database.Model):
+    __tablename__ = 'hull_blueprints'
+    extend_existing = True
+
+    id = Column(Integer, primary_key=True)
+    hash = Column(String(64))
+    mass_limit = Column(Integer)
+    fleet_id = Column(Integer, ForeignKey('fleets.id'))
+
+    def __repr__(self):
+        return '<Hull Blueprint %s>' % self.id
+
+    def __init__(self, hash, mass_limit, fleet_id):
+        self.hash = hash
         self.mass_limit = mass_limit
+        self.fleet_id = fleet_id
 
     def get_json(self):
         return {}
 
 
+class JumpDriveBlueprint(database.Model):
+    __tablename__ = 'jump_drive_blueprints'
+    extend_existing = True
+
+    id = Column(Integer, primary_key=True)
+    hash = Column(String(64))
+    health_limit = Column(Integer)
+    distance_scalar = Column(Float)
+    fuel_scalar = Column(Float)
+    mass_limit = Column(Integer)
+    fleet_id = Column(Integer, ForeignKey('fleets.id'))
+    
+    def __repr__(self):
+        return '<Jump Drive Blueprint %s>' % self.id
+
+    def __init__(self, hash, health_limit, distance_scalar, fuel_scalar, mass_limit, fleet_id):
+        self.hash = hash
+        self.health_limit = health_limit
+        self.distance_scalar = distance_scalar
+        self.fuel_scalar = fuel_scalar
+        self.mass_limit = mass_limit
+        self.fleet_id = fleet_id
+
+    def get_json(self):
+        return {}
+
+
+class JumpDrive(database.Model):
+    __tablename__ = 'jump_drive_modules'
+    extend_existing = True
+
+    id = Column(Integer, primary_key=True)
+    blueprint_id = Column(Integer)
+    health = Column(Integer)
+
+    def __repr__(self):
+        return '<Jump Drive %s>' % self.id
+
+    def __init__(self, blueprint_id, health):
+        self.blueprint_id = blueprint_id
+        self.health = health
+
+    def get_json(self):
+        return {}
+
+class CargoBlueprint(database.Model):
+    __tablename__ = 'cargo_blueprints'
+    extend_existing = True
+
+    id = Column(Integer, primary_key=True)
+    hash = Column(String(64))
+    health_limit = Column(Integer)
+    mass_limit = Column(Integer)
+    fleet_id = Column(Integer, ForeignKey('fleets.id'))
+
+    def __repr__(self):
+        return '<Cargo Blueprint %s>' % self.id
+
+    def __init__(self, hash, health_limit, mass_limit, fleet_id):
+        self.hash = hash
+        self.health_limit = health_limit
+        self.mass_limit = mass_limit
+        self.fleet_id = fleet_id
+
+    def get_json(self):
+        return {}
+
+
+class Cargo(database.Model):
+    __tablename__ = 'cargo_modules'
+    extend_existing = True
+
+    id = Column(Integer, primary_key=True)
+    blueprint_id = Column(Integer)
+    health = Column(Integer)
+    fuel_mass = Column(Integer)
+
+    def __repr__(self):
+        return '<Cargo %s>' % self.id
+
+    def __init__(self, blueprint_id, health, fuel_mass):
+        self.blueprint_id = blueprint_id
+        self.health = health
+        self.fuel_mass = fuel_mass
+
+    def get_json(self):
+        return {}
+
+def populate_types(session, type_class, type_names):
+    for existing in session.query(type_class).all():
+        type_names.remove(existing.name)
+    for current_type in type_names:
+        session.add(type_class(current_type))
+
 def initialize_models():
     session = database.session()
     try:
-        default_types = [
-            'reward',
-            'jump',
-            'attack',
-            'transfer'
-        ]
-        for existing in session.query(EventType).all():
-            default_types.remove(existing.name)
-        for current_type in default_types:
-            session.add(EventType(current_type))
+        populate_types(
+            session,
+            EventType, 
+            [
+                'reward',
+                'jump',
+                'attack',
+                'transfer'
+            ]
+        )
+
+        populate_types(
+            session,
+            EventModelType, 
+            [
+                'vessel'
+            ]
+        )
+
+        populate_types(
+            session,
+            ModuleType, 
+            [
+                'hull',
+                'jump_drive',
+                'cargo'
+            ]
+        )
+        session.commit()
+
+        session.add(HullBlueprint(DEFAULT_HULL['hash'], DEFAULT_HULL['mass_limit'], None))
+        session.add(CargoBlueprint(DEFAULT_CARGO['hash'], DEFAULT_CARGO['health_limit'], DEFAULT_CARGO['mass_limit'], None))
+        session.add(JumpDriveBlueprint(DEFAULT_JUMP_DRIVE['hash'], DEFAULT_JUMP_DRIVE['health_limit'], DEFAULT_JUMP_DRIVE['distance_scalar'], DEFAULT_JUMP_DRIVE['fuel_scalar'], DEFAULT_JUMP_DRIVE['mass_limit'], None))
         session.commit()
     finally:
         session.close()
