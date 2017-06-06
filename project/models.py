@@ -361,6 +361,25 @@ class EventType(database.Model):
         return {}
 
 
+class Hull(database.Model):
+    __tablename__ = 'hulls'
+    extend_existing = True
+
+    id = Column(Integer, primary_key=True)
+    blueprint_id = Column(Integer)
+    mass_limit = Column(Integer)
+
+    def __repr__(self):
+        return '<Hull %s>' % self.id
+
+    def __init__(self, blueprint_id, mass_limit):
+        self.blueprint_id = blueprint_id
+        self.mass_limit = mass_limit
+
+    def get_json(self):
+        return {}
+
+
 def initialize_models():
     session = database.session()
     try:
