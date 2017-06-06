@@ -15,6 +15,7 @@ import factory
 
 app = factory.create_app({})
 app.debug = 0 < os.getenv('CV_DEBUG', 0)
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DB_HOST', 'sqlite:///service.db')
 
 database.app = app
 database.init_app(app)
