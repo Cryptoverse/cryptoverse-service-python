@@ -185,6 +185,8 @@ def get_star_logs():
                     output_star_system = session.query(StarLog).filter_by(id=current_output_event.star_system_id).first()
                     # Rewards sent to the probed system can't have been known, so they would be left blank.
                     output_star_system_hash = None if output_star_system.hash == match.hash else output_star_system.hash
+
+
                     outputs.append(current_output.get_json(util.get_event_type_name(current_output_event.type_id), output_fleet.hash, current_output_event.key, output_star_system_hash, current_output_event.count))
                 events.append(signature_match.get_json(fleet.hash, fleet.public_key, inputs, outputs, signature_bind.index))
             results.append(match.get_json(events))
@@ -435,7 +437,7 @@ def post_star_logs():
                                 raise Exception('module_type %s not implimented' % module_type)
                             session.add(module_entry)
                             session.flush()
-                            session.add(EventModel(target_output.id, module_entry.id, util.get_module_type_id(model_type)))
+                            session.add(EventModel(target_output.id, module_entry.id, util.get_module_type_id(module_type)))
                         if remaining_mass < 0:
                             raise Exception('vessel mass out of range')
                     else:
