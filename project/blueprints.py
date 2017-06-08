@@ -39,7 +39,7 @@ DEFAULT_VESSEL = {
             'delta': False,
             'health': DEFAULT_CARGO['health_limit'],
             'contents': {
-                'fuel_mass': DEFAULT_CARGO['mass_limit']
+                'fuel': DEFAULT_CARGO['mass_limit']
             }
         }
     ]

@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
 import util
-
+import blueprints
 
 def byte_size(limit, target):
     if limit < len(target):
@@ -108,7 +108,6 @@ def events(events_json):
     Args:
         events_json (dict): Events json.
     """
-    remaining_ship_rewards = util.shipReward()
     input_keys = []
     output_keys = []
     for current_event in events_json:
@@ -118,12 +117,14 @@ def events(events_json):
                 raise Exception('reward events cannot have inputs')
             if len(current_event['outputs']) == 0:
                 raise Exception('reward events with no recipients should not be included')
-            for current_output in current_event['outputs']:
-                remaining_ship_rewards -= current_output['count']
-                if remaining_ship_rewards < 0:
-                    raise Exception('number of ships rewarded is out of range')
-                if current_output['type'] != 'reward':
-                    raise Exception('reward outputs must be of type "reward"')
+            if len(current_event['outputs']) != 1:
+                raise Exception('reward cannot contain more than one vessel')
+            reward_event = current_event['outputs'][0]
+            if reward_event['type'] != 'reward':
+                raise Exception('reward vessel must be marked as a reward')
+            if reward_event['model_type'] != 'vessel':
+                raise Exception('a reward must be of type vessel')
+            vessels_are_equal(reward_event['model'], blueprints.DEFAULT_VESSEL)
         elif current_event['type'] == 'jump':
             if len(current_event['inputs']) == 0:
                 raise Exception('jump events cannot have zero inputs')
@@ -263,17 +264,133 @@ def event_output(output_json, require_star_system=False):
         if not isinstance(output_json['star_system'], basestring):
             raise Exception('star_system is not a string')
         field_is_sha256(output_json['star_system'], 'star_system')
-    if not isinstance(output_json['count'], int):
-        raise Exception('count is not an integer')
+    
+    model_type = output_json['model_type']
+    if not isinstance(model_type, basestring):
+        raise Exception('model_type is not a string')
+    if output_json['model'] is None:
+        raise Exception('model is missing')
+    
+    if model_type == 'vessel':
+        vessel(output_json['model'])
+    else:
+        raise Exception('model_type %s is not recognized' % model_type)
 
     if output_json['index'] < 0:
         raise Exception('index is out of range')
-    if output_json['count'] <= 0:
-        raise Exception('count is out of range')
 
     field_is_sha256(output_json['fleet_hash'], 'fleet_hash')
     field_is_sha256(output_json['key'], 'key')
 
+def vessel(vessel_json):
+    """Validates the json of a vessel.
+
+    Args:
+        vessel_json (dict): Vessel to validate.
+    """
+    if vessel_json['blueprint'] is None:
+        raise Exception('blueprint is missing')
+    if vessel_json['modules'] is None:
+        raise Exception('modules is missing')
+    
+    for current_module in vessel_json['modules']:
+        if current_module is None:
+            raise Exception('a module is missing')
+        module(current_module)
+
+def module(module_json):
+    """Validates that the fields of a module are present in the provided json.
+
+    Args:
+        module_json (dict): The module to validate.
+    """
+    if module_json['blueprint'] is None:
+        raise Exception('blueprint is missing')
+    if module_json['delta'] is None or not isinstance(module_json['delta'], bool):
+        raise Exception('delta is missing')
+    if module_json['health'] is None:
+        raise Exception('health is missing')
+    if module_json['health'] < 0 or util.MAXIMUM_INTEGER < module_json['health']:
+        raise Exception('health is out of range')
+    if not isinstance(module_json['index'], int):
+        raise Exception('index is not an integer')
+    if module_json['index'] < 0:
+        raise Exception('index is out of range')
+    
+    module_type = module_json['module_type']
+    if module_type == 'jump_drive':
+        jump_drive(module_json)
+    elif module_type == 'cargo':
+        cargo(module_json)
+    elif module_type == 'weapon':
+        weapon(module_json)
+    else:
+        raise Exception('module_type %s is not recognized')
+
+
+def jump_drive(jump_drive_json):
+    pass
+
+
+def cargo(cargo_json):
+    for current_resource in cargo_json['contents'].keys():
+        if current_resource not in util.RESOURCE_TYPES:
+            raise Exception('resource %s not recognized' % current_resource)
+        current_value = cargo_json['contents'][current_resource]
+        if current_value < 0 or util.MAXIMUM_INTEGER < current_value:
+            raise Exception('resource %s is out of range' % current_resource)
+
+
+def weapon(weapon_json):
+    raise Exception('not implimented')
+
+
+def vessels_are_equal(vessel_json0, vessel_json1):
+    if vessel_json0['blueprint'] != vessel_json1['blueprint']:
+        raise Exception('hull blueprints do not match')
+    if len(vessel_json0['modules']) != len(vessel_json1['modules']):
+        raise Exception('number of modules do not match')
+    for current_module in vessel_json0['modules']:
+        other_module = [x for x in vessel_json1['modules'] if x['index'] == current_module['index']]
+        if other_module is None:
+            raise Exception('unable to find matching index %s' % current_module['index'])
+        modules_are_equal(current_module, other_module[0])
+        
+
+def modules_are_equal(module_json0, module_json1):
+    if module_json0['blueprint'] != module_json1['blueprint']:
+        raise Exception('blueprint does not match')
+    if module_json0['delta'] != module_json1['delta']:
+        raise Exception('delta does not match')
+    if module_json0['health'] != module_json1['health']:
+        raise Exception('health does not match')
+    if module_json0['index'] != module_json1['index']:
+        raise Exception('index does not match')
+    if module_json0['module_type'] != module_json1['module_type']:
+        raise Exception('module_type does not match')
+    
+    current_type = module_json0['module_type']
+    if current_type == 'jump_drive':
+        jump_drives_are_equal(module_json0, module_json1)
+    elif current_type == 'cargo':
+        cargos_are_equal(module_json0, module_json1)
+    elif current_type == 'weapon':
+        weapons_are_equal(module_json0, module_json1)
+    else:
+        raise Exception('module_type %s not recognized' % current_type)
+
+def jump_drives_are_equal(jump_drive_json0, jump_drive_json1):
+    pass
+
+def cargos_are_equal(cargo_json0, cargo_json1):
+    if len(cargo_json0['contents']) != len(cargo_json1['contents']):
+        raise Exception('contents count does not match')
+    for current_resource in cargo_json0['contents'].keys():
+        if cargo_json0['contents'][current_resource] != cargo_json1['contents'][current_resource]:
+            raise Exception('resource count for %s does not match' % current_resource)
+
+def weapons_are_equal(weapon_json0, weapon_json1):
+    raise Exception('not implimented yet')
 
 def event_rsa(event_json):
     """Verifies the RSA signature of the provided event json.
