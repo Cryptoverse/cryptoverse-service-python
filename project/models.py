@@ -211,17 +211,15 @@ class Event(database.Model):
     type_id = Column(Integer)
     fleet_id = Column(Integer, ForeignKey('fleets.id'))
     key = Column(String(64))
-    count = Column(Integer)
     star_system_id = Column(Integer, ForeignKey('star_logs.id'))
 
     def __repr__(self):
         return '<Event %s>' % self.id
 
-    def __init__(self, key, type_id, fleet_id, count, star_system_id):
+    def __init__(self, key, type_id, fleet_id, star_system_id):
         self.key = key
         self.type_id = type_id
         self.fleet_id = fleet_id
-        self.count = count
         self.star_system_id = star_system_id
 
     def get_json(self):
@@ -440,6 +438,7 @@ class JumpDriveBlueprint(database.Model):
     id = Column(Integer, primary_key=True)
     hash = Column(String(64))
     health_limit = Column(Integer)
+    mass = Column(Integer)
     distance_scalar = Column(Float)
     fuel_scalar = Column(Float)
     mass_limit = Column(Integer)
@@ -448,9 +447,10 @@ class JumpDriveBlueprint(database.Model):
     def __repr__(self):
         return '<Jump Drive Blueprint %s>' % self.id
 
-    def __init__(self, hash, health_limit, distance_scalar, fuel_scalar, mass_limit, fleet_id):
+    def __init__(self, hash, health_limit, mass, distance_scalar, fuel_scalar, mass_limit, fleet_id):
         self.hash = hash
         self.health_limit = health_limit
+        self.mass = mass
         self.distance_scalar = distance_scalar
         self.fuel_scalar = fuel_scalar
         self.mass_limit = mass_limit
@@ -467,13 +467,15 @@ class JumpDrive(database.Model):
     id = Column(Integer, primary_key=True)
     blueprint_id = Column(Integer)
     health = Column(Integer)
+    index = Column(Integer)
 
     def __repr__(self):
         return '<Jump Drive %s>' % self.id
 
-    def __init__(self, blueprint_id, health):
+    def __init__(self, blueprint_id, health, index):
         self.blueprint_id = blueprint_id
         self.health = health
+        self.index = index
 
     def get_json(self):
         return {}
@@ -485,15 +487,17 @@ class CargoBlueprint(database.Model):
     id = Column(Integer, primary_key=True)
     hash = Column(String(64))
     health_limit = Column(Integer)
+    mass = Column(Integer)
     mass_limit = Column(Integer)
     fleet_id = Column(Integer, ForeignKey('fleets.id'))
 
     def __repr__(self):
         return '<Cargo Blueprint %s>' % self.id
 
-    def __init__(self, hash, health_limit, mass_limit, fleet_id):
+    def __init__(self, hash, health_limit, mass, mass_limit, fleet_id):
         self.hash = hash
         self.health_limit = health_limit
+        self.mass = mass
         self.mass_limit = mass_limit
         self.fleet_id = fleet_id
 
@@ -509,14 +513,16 @@ class Cargo(database.Model):
     blueprint_id = Column(Integer)
     health = Column(Integer)
     fuel_mass = Column(Integer)
+    index = Column(Integer)
 
     def __repr__(self):
         return '<Cargo %s>' % self.id
 
-    def __init__(self, blueprint_id, health, fuel_mass):
+    def __init__(self, blueprint_id, health, fuel_mass, index):
         self.blueprint_id = blueprint_id
         self.health = health
         self.fuel_mass = fuel_mass
+        self.index = index
 
     def get_json(self):
         return {}
@@ -533,12 +539,7 @@ def initialize_models():
         populate_types(
             session,
             EventType, 
-            [
-                'reward',
-                'jump',
-                'attack',
-                'transfer'
-            ]
+            util.EVENT_TYPES
         )
 
         populate_types(
@@ -552,17 +553,16 @@ def initialize_models():
         populate_types(
             session,
             ModuleType, 
-            [
-                'hull',
-                'jump_drive',
-                'cargo'
-            ]
+            util.MODULE_TYPES
         )
         session.commit()
 
-        session.add(HullBlueprint(DEFAULT_HULL['hash'], DEFAULT_HULL['mass_limit'], None))
-        session.add(CargoBlueprint(DEFAULT_CARGO['hash'], DEFAULT_CARGO['health_limit'], DEFAULT_CARGO['mass_limit'], None))
-        session.add(JumpDriveBlueprint(DEFAULT_JUMP_DRIVE['hash'], DEFAULT_JUMP_DRIVE['health_limit'], DEFAULT_JUMP_DRIVE['distance_scalar'], DEFAULT_JUMP_DRIVE['fuel_scalar'], DEFAULT_JUMP_DRIVE['mass_limit'], None))
+        if session.query(HullBlueprint).filter_by(hash=DEFAULT_HULL['hash']).first() is None:
+            session.add(HullBlueprint(DEFAULT_HULL['hash'], DEFAULT_HULL['mass_limit'], None))
+        if session.query(CargoBlueprint).filter_by(hash=DEFAULT_CARGO['hash']).first() is None:
+            session.add(CargoBlueprint(DEFAULT_CARGO['hash'], DEFAULT_CARGO['health_limit'], DEFAULT_CARGO['mass'], DEFAULT_CARGO['mass_limit'], None))
+        if session.query(JumpDriveBlueprint).filter_by(hash=DEFAULT_JUMP_DRIVE['hash']).first() is None:
+            session.add(JumpDriveBlueprint(DEFAULT_JUMP_DRIVE['hash'], DEFAULT_JUMP_DRIVE['health_limit'], DEFAULT_JUMP_DRIVE['mass'], DEFAULT_JUMP_DRIVE['distance_scalar'], DEFAULT_JUMP_DRIVE['fuel_scalar'], DEFAULT_JUMP_DRIVE['mass_limit'], None))
         session.commit()
     finally:
         session.close()

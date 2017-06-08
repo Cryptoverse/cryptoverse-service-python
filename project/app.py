@@ -10,7 +10,8 @@ import validate
 import verify
 from models import database, initialize_models, StarLog, Fleet, Chain, \
     ChainIndex, Event, EventSignature, EventInput, EventOutput, \
-    StarLogEventSignature
+    StarLogEventSignature, EventModelType, HullBlueprint, JumpDriveBlueprint, \
+    CargoBlueprint, JumpDrive, Cargo, EventModel
 import factory
 
 app = factory.create_app({})
@@ -389,13 +390,56 @@ def post_star_logs():
                         if target_star_system is None:
                             raise Exception('star system %s is not accounted for' % current_output['star_system'])
                         target_star_system_id = target_star_system.id
-                    target_output = Event(current_output['key'], util.get_event_type_id(current_output['type']), output_fleet.id, current_output['count'], target_star_system_id)
+                    
+                    target_output = Event(current_output['key'], util.get_event_type_id(current_output['type']), output_fleet.id, target_star_system_id)
                     session.add(target_output)
                     session.flush()
                     if target_star_system_id is None:
                         needs_star_system_ids.append(target_output)
                     event_output = EventOutput(target_output.id, event_signature.id, current_output['index'])
                     session.add(event_output)
+
+                    model_type = session.query(EventModelType).filter_by(name=current_output['model_type']).first()
+                    if model_type is None:
+                        raise Exception('model_type %s is not accounted for' % current_output['model_type'])
+
+                    if model_type.name == 'vessel':
+                        current_vessel = current_output['model']
+                        hull_blueprint = session.query(HullBlueprint).filter_by(hash=current_vessel['blueprint']).first()
+                        if hull_blueprint is None:
+                            raise Exception('hull blueprint %s not accounted for' % current_vessel['blueprint'])
+                        session.add(EventModel(target_output.id, hull_blueprint.id, util.get_module_type_id('hull')))
+                        remaining_mass = hull_blueprint.mass_limit
+                        for current_module in current_vessel['modules']:
+                            module_type = current_module['module_type']
+                            module_entry = None
+                            if module_type == 'jump_drive':
+                                module_blueprint = session.query(JumpDriveBlueprint).filter_by(hash=current_module['blueprint']).first()
+                                if module_blueprint is None:
+                                    raise Exception('jump_drive blueprint %s not accounted for' % current_module['blueprint'])
+                                if module_blueprint.health_limit < current_module['health']:
+                                    raise Exception('health is greater than health_limit')
+                                remaining_mass -= module_blueprint.mass
+                                module_entry = JumpDrive(module_blueprint.id, current_module['health'], current_module['index'])
+                            elif module_type == 'cargo':
+                                module_blueprint = session.query(CargoBlueprint).filter_by(hash=current_module['blueprint']).first()
+                                if module_blueprint is None:
+                                    raise Exception('cargo blueprint %s not accounted for' % current_module['blueprint'])
+                                if module_blueprint.health_limit < current_module['health']:
+                                    raise Exception('health is greater than health_limit')
+                                cargo_contents = current_module['contents']
+                                fuel_mass = cargo_contents.get('fuel', 0)
+                                remaining_mass -= (module_blueprint.mass + fuel_mass)
+                                module_entry = Cargo(module_blueprint.id, current_module['health'], fuel_mass, current_module['index'])
+                            else:
+                                raise Exception('module_type %s not implimented' % module_type)
+                            session.add(module_entry)
+                            session.flush()
+                            session.add(EventModel(target_output.id, module_entry.id, util.get_module_type_id(model_type)))
+                        if remaining_mass < 0:
+                            raise Exception('vessel mass out of range')
+                    else:
+                        raise Exception('model_type %s not implimented' % model_type.name)
                 else:
                     target_output = session.query(Event).filter_by(key=current_output['key']).first()
                     event_output = session.query(EventOutput).filter_by(index=current_output['index'], event_id=target_output.id, event_signature_id=event_signature.id)
