@@ -185,9 +185,31 @@ def get_star_logs():
                     output_star_system = session.query(StarLog).filter_by(id=current_output_event.star_system_id).first()
                     # Rewards sent to the probed system can't have been known, so they would be left blank.
                     output_star_system_hash = None if output_star_system.hash == match.hash else output_star_system.hash
+                    model_type = util.get_event_model_type_name(current_output_event.model_type_id)
+                    model = None
+                    if model_type == 'vessel':
+                        model = {
+                            'blueprint': None,
+                            'modules': []
+                        }
+                        for current_event_module in session.query(EventModel).filter_by(event_id=current_output.event_id):
+                            current_module_type = util.get_module_type_name(current_event_module.type_id)
+                            if current_module_type == 'hull':
+                                model['blueprint'] = session.query(HullBlueprint).filter_by(id=current_event_module.model_id).first().hash
+                            elif current_module_type == 'jump_drive':
+                                current_module = session.query(JumpDrive).filter_by(id=current_event_module.model_id).first()
+                                current_blueprint = session.query(JumpDriveBlueprint).filter_by(id=current_module.blueprint_id).first()
+                                model['modules'].append(current_module.get_json(current_blueprint.hash))
+                            elif current_module_type == 'cargo':
+                                current_module = session.query(Cargo).filter_by(id=current_event_module.model_id).first()
+                                current_blueprint = session.query(CargoBlueprint).filter_by(id=current_module.blueprint_id).first()
+                                model['modules'].append(current_module.get_json(current_blueprint.hash))
+                            else:
+                                raise Exception('module type %s not implimented' % current_module_type)
+                    else:
+                        raise Exception('event type %s not implimented' % model_type)
+                    outputs.append(current_output.get_json(util.get_event_type_name(current_output_event.type_id), output_fleet.hash, current_output_event.key, output_star_system_hash, model, model_type))
 
-
-                    outputs.append(current_output.get_json(util.get_event_type_name(current_output_event.type_id), output_fleet.hash, current_output_event.key, output_star_system_hash, current_output_event.count))
                 events.append(signature_match.get_json(fleet.hash, fleet.public_key, inputs, outputs, signature_bind.index))
             results.append(match.get_json(events))
         return json.dumps(results)
@@ -393,7 +415,9 @@ def post_star_logs():
                             raise Exception('star system %s is not accounted for' % current_output['star_system'])
                         target_star_system_id = target_star_system.id
                     
-                    target_output = Event(current_output['key'], util.get_event_type_id(current_output['type']), output_fleet.id, target_star_system_id)
+                    model_type_name = current_output['model_type']
+                    model_type = util.get_event_model_type_id(model_type_name)
+                    target_output = Event(current_output['key'], util.get_event_type_id(current_output['type']), model_type, output_fleet.id, target_star_system_id)
                     session.add(target_output)
                     session.flush()
                     if target_star_system_id is None:
@@ -401,11 +425,7 @@ def post_star_logs():
                     event_output = EventOutput(target_output.id, event_signature.id, current_output['index'])
                     session.add(event_output)
 
-                    model_type = session.query(EventModelType).filter_by(name=current_output['model_type']).first()
-                    if model_type is None:
-                        raise Exception('model_type %s is not accounted for' % current_output['model_type'])
-
-                    if model_type.name == 'vessel':
+                    if model_type_name == 'vessel':
                         current_vessel = current_output['model']
                         hull_blueprint = session.query(HullBlueprint).filter_by(hash=current_vessel['blueprint']).first()
                         if hull_blueprint is None:
@@ -422,7 +442,7 @@ def post_star_logs():
                                 if module_blueprint.health_limit < current_module['health']:
                                     raise Exception('health is greater than health_limit')
                                 remaining_mass -= module_blueprint.mass
-                                module_entry = JumpDrive(module_blueprint.id, current_module['health'], current_module['index'])
+                                module_entry = JumpDrive(module_blueprint.id, current_module['health'], current_module['delta'], current_module['index'])
                             elif module_type == 'cargo':
                                 module_blueprint = session.query(CargoBlueprint).filter_by(hash=current_module['blueprint']).first()
                                 if module_blueprint is None:
@@ -432,7 +452,7 @@ def post_star_logs():
                                 cargo_contents = current_module['contents']
                                 fuel_mass = cargo_contents.get('fuel', 0)
                                 remaining_mass -= (module_blueprint.mass + fuel_mass)
-                                module_entry = Cargo(module_blueprint.id, current_module['health'], fuel_mass, current_module['index'])
+                                module_entry = Cargo(module_blueprint.id, current_module['health'], current_module['delta'], fuel_mass, current_module['index'])
                             else:
                                 raise Exception('module_type %s not implimented' % module_type)
                             session.add(module_entry)
@@ -441,7 +461,7 @@ def post_star_logs():
                         if remaining_mass < 0:
                             raise Exception('vessel mass out of range')
                     else:
-                        raise Exception('model_type %s not implimented' % model_type.name)
+                        raise Exception('model_type %s not implimented' % model_type_name)
                 else:
                     target_output = session.query(Event).filter_by(key=current_output['key']).first()
                     event_output = session.query(EventOutput).filter_by(index=current_output['index'], event_id=target_output.id, event_signature_id=event_signature.id)

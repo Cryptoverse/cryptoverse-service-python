@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy, SignallingSession, SessionBase
-from sqlalchemy import Column, Integer, String, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, Boolean
 from blueprints import DEFAULT_HULL, DEFAULT_CARGO, DEFAULT_JUMP_DRIVE
 import util
 
@@ -209,6 +209,7 @@ class Event(database.Model):
 
     id = Column(Integer, primary_key=True)
     type_id = Column(Integer)
+    model_type_id = Column(Integer)
     fleet_id = Column(Integer, ForeignKey('fleets.id'))
     key = Column(String(64))
     star_system_id = Column(Integer, ForeignKey('star_logs.id'))
@@ -216,9 +217,10 @@ class Event(database.Model):
     def __repr__(self):
         return '<Event %s>' % self.id
 
-    def __init__(self, key, type_id, fleet_id, star_system_id):
+    def __init__(self, key, type_id, model_type_id, fleet_id, star_system_id):
         self.key = key
         self.type_id = type_id
+        self.model_type_id = model_type_id
         self.fleet_id = fleet_id
         self.star_system_id = star_system_id
 
@@ -309,14 +311,15 @@ class EventOutput(database.Model):
         self.event_signature_id = event_signature_id
         self.index = index
 
-    def get_json(self, type_name, fleet_hash, key, star_system, count):
+    def get_json(self, type_name, fleet_hash, key, star_system, model, model_type):
         return {
             'index': self.index,
             'type': type_name,
             'fleet_hash': fleet_hash,
             'key': key,
             'star_system': star_system,
-            'count': count
+            'model': model,
+            'model_type': model_type
         }
 
 
@@ -468,17 +471,25 @@ class JumpDrive(database.Model):
     blueprint_id = Column(Integer)
     health = Column(Integer)
     index = Column(Integer)
+    delta = Column(Boolean)
 
     def __repr__(self):
         return '<Jump Drive %s>' % self.id
 
-    def __init__(self, blueprint_id, health, index):
+    def __init__(self, blueprint_id, health, delta, index):
         self.blueprint_id = blueprint_id
         self.health = health
+        self.delta = delta
         self.index = index
 
-    def get_json(self):
-        return {}
+    def get_json(self, blueprint):
+        return {
+            'blueprint': blueprint,
+            'delta': self.delta,
+            'health': self.health,
+            'index': self.index,
+            'module_type': 'jump_drive'
+        }
 
 class CargoBlueprint(database.Model):
     __tablename__ = 'cargo_blueprints'
@@ -514,23 +525,36 @@ class Cargo(database.Model):
     health = Column(Integer)
     fuel_mass = Column(Integer)
     index = Column(Integer)
+    delta = Column(Boolean)
 
     def __repr__(self):
         return '<Cargo %s>' % self.id
 
-    def __init__(self, blueprint_id, health, fuel_mass, index):
+    def __init__(self, blueprint_id, health, delta, fuel_mass, index):
         self.blueprint_id = blueprint_id
         self.health = health
+        self.delta = delta
         self.fuel_mass = fuel_mass
         self.index = index
 
-    def get_json(self):
-        return {}
+    def get_json(self, blueprint):
+        return {
+            'blueprint': blueprint,
+            'delta': self.delta,
+            'health': self.health,
+            'contents': {
+                'fuel': self.fuel_mass,
+            },
+            'index': self.index,
+            'module_type': 'cargo'
+        }
 
 def populate_types(session, type_class, type_names):
     for existing in session.query(type_class).all():
         type_names.remove(existing.name)
     for current_type in type_names:
+        if current_type == 'unknown':
+            continue
         session.add(type_class(current_type))
 
 def initialize_models():
@@ -545,9 +569,7 @@ def initialize_models():
         populate_types(
             session,
             EventModelType, 
-            [
-                'vessel'
-            ]
+            util.EVENT_MODEL_TYPES
         )
 
         populate_types(
