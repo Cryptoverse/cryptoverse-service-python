@@ -11,8 +11,7 @@ class _SignallingSession(SignallingSession):
     def __init__(self, db, autocommit=False, autoflush=True, **options):
         self.app = db.get_app()
         self._model_changes = {}
-        self.emit_modification_signals = \
-            self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS']
+        self.emit_modification_signals = self.app.config['SQLALCHEMY_TRACK_MODIFICATIONS']
 
         bind = options.pop('bind', None)
         if bind is None:
@@ -551,6 +550,8 @@ class Cargo(database.Model):
 
 def populate_types(session, type_class, type_names):
     for existing in session.query(type_class).all():
+        if existing.name not in type_names:
+            raise Exception('Database already contains unrecognized value %s' % existing.name)
         type_names.remove(existing.name)
     for current_type in type_names:
         if current_type == 'unknown':
@@ -562,20 +563,20 @@ def initialize_models():
     try:
         populate_types(
             session,
-            EventType, 
-            util.EVENT_TYPES
+            EventType,
+            list(util.EVENT_TYPES)
+        )
+        
+        populate_types(
+            session,
+            EventModelType,
+            list(util.EVENT_MODEL_TYPES)
         )
 
         populate_types(
             session,
-            EventModelType, 
-            util.EVENT_MODEL_TYPES
-        )
-
-        populate_types(
-            session,
-            ModuleType, 
-            util.MODULE_TYPES
+            ModuleType,
+            list(util.MODULE_TYPES)
         )
         session.commit()
 

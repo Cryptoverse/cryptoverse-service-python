@@ -1,11 +1,13 @@
 import util
-from models import StarLog, Fleet, Chain, ChainIndex, ChainIndex, Event, \
-    EventSignature, EventInput, EventOutput, StarLogEventSignature, \
-    EventModelType, HullBlueprint, JumpDriveBlueprint, CargoBlueprint, \
+from models import (
+    StarLog, Fleet, Chain, ChainIndex, ChainIndex, Event,
+    EventSignature, EventInput, EventOutput, StarLogEventSignature,
+    EventModelType, HullBlueprint, JumpDriveBlueprint, CargoBlueprint,
     JumpDrive, Cargo, EventModel
+)
 
-def star_log(session, star_log):
-    signature_binds = session.query(StarLogEventSignature).filter_by(star_log_id=star_log.id).all()
+def star_log(session, star_log_record):
+    signature_binds = session.query(StarLogEventSignature).filter_by(star_log_id=star_log_record.id).all()
     events = []
     for signature_bind in signature_binds:
         signature_match = session.query(EventSignature).filter_by(id=signature_bind.event_signature_id).first()
@@ -24,7 +26,7 @@ def star_log(session, star_log):
             output_fleet = session.query(Fleet).filter_by(id=current_output_event.fleet_id).first()
             output_star_system = session.query(StarLog).filter_by(id=current_output_event.star_system_id).first()
             # Rewards sent to the probed system can't have been known, so they would be left blank.
-            output_star_system_hash = None if output_star_system.hash == star_log.hash else output_star_system.hash
+            output_star_system_hash = None if output_star_system.hash == star_log_record.hash else output_star_system.hash
             model_type = util.get_event_model_type_name(current_output_event.model_type_id)
             model = None
             if model_type == 'vessel':
@@ -51,4 +53,4 @@ def star_log(session, star_log):
             outputs.append(current_output.get_json(util.get_event_type_name(current_output_event.type_id), output_fleet.hash, current_output_event.key, output_star_system_hash, model, model_type))
 
         events.append(signature_match.get_json(fleet.hash, fleet.public_key, inputs, outputs, signature_bind.index))
-    return star_log.get_json(events)
+    return star_log_record.get_json(events)

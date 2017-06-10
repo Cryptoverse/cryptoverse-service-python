@@ -8,10 +8,13 @@ from flask import Flask, request
 import util
 import validate
 import verify
-from models import database, initialize_models, StarLog, Fleet, Chain, \
-    ChainIndex, Event, EventSignature, EventInput, EventOutput, \
-    StarLogEventSignature, EventModelType, HullBlueprint, JumpDriveBlueprint, \
+from models import ( 
+    database, initialize_models, StarLog, Fleet, Chain,
+    ChainIndex, Event, EventSignature, EventInput, EventOutput,
+    StarLogEventSignature, EventModelType, HullBlueprint, JumpDriveBlueprint,
     CargoBlueprint, JumpDrive, Cargo, EventModel
+)
+
 import factory
 import assemble
 
@@ -81,55 +84,7 @@ def get_chains():
         # TODO: Remove duplicate code that's in chains and starlogs.
         # TODO: Make this code better by figuring out joins and such.
         for match in matches:
-            signature_binds = session.query(StarLogEventSignature)\
-                .filter_by(star_log_id=match.id).all()
-            events = []
-            for signature_bind in signature_binds:
-                signature_match = session\
-                    .query(EventSignature)\
-                    .filter_by(id=signature_bind.event_signature_id)\
-                    .first()
-                fleet = session\
-                    .query(Fleet)\
-                    .filter_by(id=signature_match.fleet_id)\
-                    .first()
-                input_events = session\
-                    .query(EventInput)\
-                    .filter_by(event_signature_id=signature_match.id)\
-                    .all()
-                output_events = session\
-                    .query(EventOutput)\
-                    .filter_by(event_signature_id=signature_match.id)\
-                    .all()
-
-                inputs = []
-                for current_input in input_events:
-                    current_input_event = session\
-                        .query(Event)\
-                        .filter_by(id=current_input.event_id)\
-                        .first()
-                    inputs.append(current_input
-                                  .get_json(current_input_event.key))
-
-                outputs = []
-                for current_output in output_events:
-                    current_output_event = session\
-                        .query(Event)\
-                        .filter_by(id=current_output.event_id)\
-                        .first()
-                    output_fleet = session\
-                        .query(Fleet)\
-                        .filter_by(id=current_output_event.fleet_id)\
-                        .first()
-                    output_star_system = session\
-                        .query(StarLog)\
-                        .filter_by(id=current_output_event.star_system_id)\
-                        .first()
-                    # Rewards sent to the probed system can't have been known, so they would be left blank.
-                    output_star_system_hash = None if output_star_system.hash == match.hash else output_star_system.hash
-                    outputs.append(current_output.get_json(util.get_event_type_name(current_output_event.type_id), output_fleet.hash, current_output_event.key, output_star_system_hash, current_output_event.count))
-                events.append(signature_match.get_json(fleet.hash, fleet.public_key, inputs, outputs, signature_bind.index))
-            results.append(match.get_json(events))
+            results.append(assemble.star_log(session, match))
 
         return json.dumps(results)
     finally:
@@ -291,10 +246,7 @@ def post_star_logs():
                 # Append this for further validation.
                 inputs.append(target_input)
                 # Get all uses of this input.
-                input_uses = session\
-                    .query(EventInput)\
-                    .filter_by(event_id=target_input.id)\
-                    .all()
+                input_uses = session.query(EventInput).filter_by(event_id=target_input.id).all()
                 # Build a list of all signatures that use this input.
                 input_uses_signatures = []
                 for input_use in input_uses:

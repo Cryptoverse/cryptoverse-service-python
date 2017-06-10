@@ -68,10 +68,8 @@ def chainsMaxLimit():
 
 MAXIMUM_INTEGER = 2147483647
 MAXIMUM_NONCE = 2147483647
-MAXIMUM_TARGET = '00000000ffffffffffffffffffffffff' \
-                 'ffffffffffffffffffffffffffffffff'
-EMPTY_TARGET = '00000000000000000000000000000000' \
-               '00000000000000000000000000000000'
+MAXIMUM_TARGET = '00000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffff'
+EMPTY_TARGET = '0000000000000000000000000000000000000000000000000000000000000000'
 
 EVENT_TYPES = [
     'unknown',
