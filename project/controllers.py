@@ -62,6 +62,12 @@ class StarLogController:
             session.close()
 
     def add_starlog(self, requestData):
+        """
+        Adds a starlog to the database
+        :param requestData: JSON object
+        :return: Success Status
+        :type return: bool
+        """
         session = database.session()
         try:
             validate.byte_size(util.maximumStarLogSize(), requestData)
