@@ -73,19 +73,20 @@ MAXIMUM_TARGET = '00000000ffffffffffffffffffffffff' \
 EMPTY_TARGET = '00000000000000000000000000000000' \
                '00000000000000000000000000000000'
 
+EVENT_MODEL_TYPES = [
+    'vessel'
+]
+
 EVENT_TYPES = [
-    'unknown',
     'reward',
     'jump',
     'attack',
     'transfer'
 ]
 
-SHIP_EVENT_TYPES = [
-    'reward',
-    'jump',
-    'attack',
-    'transfer'
+EVENT_USAGES = [
+    'input',
+    'output'
 ]
 
 def get_maximum_target():
