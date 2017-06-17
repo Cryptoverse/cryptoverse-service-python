@@ -21,9 +21,6 @@ class BaseApp():
 
         self.flask_app.run(use_reloader=False)
 
-        self.flask_app.add_url_rule('/blocks', view_func=BlockApi.as_view('blocks'))
-        # app.register_blueprint(debug, url_prefix='/debug')
-
     def initialize_database(self):
         self.database = SQLAlchemy()
 

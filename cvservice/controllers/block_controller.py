@@ -11,11 +11,12 @@ class BlockController():
         self.database = app.database
         self.block_api = BlockApi(self)
         app.flask_app.add_url_rule('/blocks', view_func=self.block_api.post, methods=['POST'])
+        app.flask_app.add_url_rule('/blocks', view_func=self.block_api.get, methods=['GET'])
 
     def get(self, previous_hash, before_time, since_time, limit, offset):
         session = self.database.session()
         try:
-            query = session.query().order_by(Block.time.desc())
+            query = session.query(Block).order_by(Block.time.desc())
             if previous_hash is not None:
                 validate.field_is_sha256(previous_hash, 'previous_hash')
                 query = query.filter_by(previous_hash=previous_hash)
