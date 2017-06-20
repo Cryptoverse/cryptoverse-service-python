@@ -1,6 +1,6 @@
 import json
 import traceback
-from cvservice import validate, util
+from cvservice import validate
 from cvservice.models.block import Block
 from cvservice.models.block_data import BlockData
 from cvservice.views.block_api import BlockApi
@@ -9,9 +9,10 @@ class BlockController():
 
     def __init__(self, app):
         self.database = app.database
+        self.rules = app.rules
         self.block_api = BlockApi(self)
-        app.flask_app.add_url_rule('/blocks', view_func=self.block_api.post, methods=['POST'])
-        app.flask_app.add_url_rule('/blocks', view_func=self.block_api.get, methods=['GET'])
+        app.flask_app.add_url_rule('/blocks', 'get_blocks', self.block_api.post, methods=['POST'])
+        app.flask_app.add_url_rule('/blocks', 'post_blocks', self.block_api.get, methods=['GET'])
 
     def get(self, previous_hash, before_time, since_time, limit, offset):
         session = self.database.session()
@@ -26,7 +27,7 @@ class BlockController():
                 query = query.filter(since_time < Block.time)
             if since_time is not None and before_time is not None and before_time < since_time:
                 raise Exception('since_time is greater than before_time')
-            if util.starLogsMaxLimit() < limit:
+            if self.rules.blocks_limit_max < limit:
                 raise Exception('limit greater than maximum allowed')
             if offset is not None:
                 query = query.offset(offset)
