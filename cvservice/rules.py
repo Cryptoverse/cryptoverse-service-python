@@ -50,13 +50,13 @@ class Rules():
         self.events_limit_max = kwargs.get('events_limit_max', 10)
 
         self.jump_cost_range = self.jump_cost_max - self.jump_cost_min
-
+        
         if self.difficulty_fudge == 0:
             self.target_max = self.TARGET_MAX
         elif not 0 <= self.difficulty_fudge <= 8:
             raise Exception('difficulty_fudge must be a value from 0 to 8 (inclusive')
         else:
-            self.target_max = self.TARGET_MAX[self.difficulty_fudge:] + self.target_max[:self.difficulty_fudge]
+            self.target_max = self.TARGET_MAX[self.difficulty_fudge:] + self.TARGET_MAX[:self.difficulty_fudge]
 
         if not 3 <= self.cartesian_digits <= 21:
             raise Exception('cartesian_digits must be a value from 3 to 21 (inclusive)')
