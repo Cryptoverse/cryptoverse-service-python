@@ -1,7 +1,7 @@
 import os
 from json import load as load_json
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
+from cvservice.models import Database
 from cvservice.controllers.block_controller import BlockController
 from cvservice.controllers.rules_controller import RulesController
 from cvservice.models.event_model_type import EventModelType
@@ -9,7 +9,7 @@ from cvservice.models.event_type import EventType
 from cvservice.models.event_usage import EventUsage
 from cvservice.rules import Rules
 
-class BaseApp():
+class BaseApp(object):
 
     def __init__(self):
         self.flask_app = Flask(__name__)
@@ -32,7 +32,7 @@ class BaseApp():
 
 
     def initialize_database(self):
-        self.database = SQLAlchemy()
+        self.database = Database
 
         self.database.app = self.flask_app
         self.database.init_app(self.flask_app)

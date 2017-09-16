@@ -1,3 +1,4 @@
-from sqlalchemy.ext.declarative import declarative_base
+from flask_sqlalchemy import SQLAlchemy
 
-Model = declarative_base()
+Database = SQLAlchemy()
+Model = Database.Model
