@@ -12,6 +12,7 @@ class RulesController():
 
     def get(self):
         return json.dumps({
+            'version': self.rules.version,
             'difficulty_fudge': self.rules.difficulty_fudge,
             'difficulty_duration': self.rules.difficulty_duration,
             'difficulty_interval': self.rules.difficulty_interval,

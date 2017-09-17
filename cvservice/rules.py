@@ -36,6 +36,7 @@ class Rules():
     ]
 
     def __init__(self, **kwargs):
+        self.version = kwargs.get('version', 0)
         self.difficulty_fudge = kwargs.get('difficulty_fudge', 0)
         self.difficulty_duration = kwargs.get('difficulty_duration', 1209600)
         self.difficulty_interval = kwargs.get('difficulty_interval', 10080)

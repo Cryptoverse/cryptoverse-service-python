@@ -1,4 +1,5 @@
 {
+    "version": 0,
     "difficulty_fudge": 0,
     "difficulty_duration": 1209600,
     "difficulty_interval": 10080,
