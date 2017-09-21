@@ -52,14 +52,27 @@ class BlockController(object):
     def add(self, request_data):
         session = self.database.session()
         try:
+            validate.byte_size(self.rules.block_size, request_data)
+            block_size = len(request_data)
             block_json = json.loads(request_data)
-            self.validate_block(block_json)
-            # block_json = json.loads(request_data)
+            self.validate_block(session, block_json)
+            
+            previous_id = None
+            interval_id = None
+            if not self.rules.is_genesis_block(block_json['previous_hash']):
+                previous_block = session.query(Block).filter_by(hash=block_json['previous_hash']).first()
+                if previous_block is None:
+                    raise Exception('unable to find previous block with hash %s' % block_json['previous_hash'])
+                previous_id = previous_block.id
+                raise NotImplementedError('get and calculate block interval')
+                # interval_id = previous_block.interval_id
+                
+            
             # block = Block(block_json['hash'],
             #               block_json['previous_hash'],
-            #               None, # previous_id
+            #               previous_id,
             #               block_json['height'],
-            #               None, # size
+            #               block_size,
             #               block_json['version'],
             #               block_json['difficulty'],
             #               block_json['time'],
@@ -68,6 +81,7 @@ class BlockController(object):
             #               None) # chain
             # session.add(block)
             # session.commit()
+            
             return True
         except:
             session.rollback()
@@ -76,7 +90,7 @@ class BlockController(object):
         finally:
             session.close()
 
-    def validate_block(self, block_json):
+    def validate_block(self, session, block_json):
         if block_json['hash'] is None:
             raise Exception('hash cannot be None')
         if block_json['nonce'] is None:
@@ -115,6 +129,47 @@ class BlockController(object):
             events_header += current_event['hash']
         validate.sha256(block_json['events_hash'], events_header)
 
+        self.validate_is_new(session, block_json)
+
+        if self.rules.is_genesis_block(block_json['previous_hash']):
+            self.validate_genesis(session, block_json)
+            return
+        
+        raise NotImplementedError
+        
+
+    def validate_genesis(self, session, block_json):
+        pass
+
+    def validate_is_new(self, session, block_json):
+        query = session.query(Block).filter_by(hash=block_json['hash'])
+        result = query.first()
+        if result is not None:
+            raise Exception('block with hash %s already exists')
+
+        # query = session.query(Block).order_by(Block.time.desc())
+        # if block_json['previous_hash'] is None:
+        #     raise Exception('previous_hash in None')
+        # validate.field_is_sha256(block_json['previous_hash'], 'previous_hash')
+        # query = query.filter_by(hash=['previous_hash'])
+        
+        # result = query.all()
+        # if result is None:
+        #     raise Exception('Unable to find previous_hash %s' % block_json['previous_hash'])
+
+        # result_json = 
+        # for match in :
+        #     blob = None
+        #     for data in session.query(BlockData).filter_by(block_id=match.id).all():
+        #         if data.data is not None:
+        #             blob = data.blob
+        #             break
+        #     if blob is None:
+        #         print 'unable to find blob for block.id %s' % match.id
+        #         continue
+        #     print blob
+        # return json.dumps(results)
+
     def validate_event(self, event_json):
         if event_json['inputs'] is None:
             raise Exception('inputs cannot be None')
@@ -147,6 +202,59 @@ class BlockController(object):
             event_header += '%s%s%s%s' % (current_output['type'], current_output['fleet_hash'], current_output['key'], serialized_location)
             event_header += self.concat_event_output_model(current_output['model'])
         validate.sha256(event_json['hash'], event_header)
+
+        if event_json['type'] == 'reward':
+            self.validate_reward_event(event_json)
+        else:
+            # check if this is an attack, etc
+            raise NotImplementedError
+
+    def validate_reward_event(self, reward_json):
+        if 0 < len(reward_json['inputs']):
+            raise Exception('reward event should have no inputs')
+        if 1 < len(reward_json['outputs']):
+            raise Exception('reward event should have one output')
+        output_json = reward_json['outputs'][0]
+        if output_json['type'] != 'reward':
+            raise Exception('reward output needs to be of type reward')
+        model_json = output_json['model']
+        if model_json is None:
+            raise Exception('reward requires a model')
+        if model_json['type'] != 'vessel':
+            raise Exception('reward must be a vessel')
+        if model_json['blueprint'] != self.rules.default_hull['blueprint']:
+            raise Exception('reward hull does not match default')
+        modules_json = model_json['modules']
+        if len(modules_json) != 2:
+            raise Exception('reward vessel has incorrect number of modules')
+        cargo_json = [x for x in modules_json if x['index'] == 0]
+        if len(cargo_json) == 0:
+            raise Exception('unable to find reward cargo module')
+        cargo_json = cargo_json[0]
+        if cargo_json['type'] != 'cargo':
+            raise Exception('first module must be cargo module')
+        if cargo_json['blueprint'] != self.rules.default_cargo['blueprint']:
+            raise Exception('reward cargo blueprint does not match default')
+        if cargo_json['health'] != self.rules.default_cargo['health']:
+            raise Exception('cargo health does not match default')
+        contents_json = cargo_json['contents']
+        if contents_json is None:
+            raise Exception('reward cargo required to be full of fuel')
+        if contents_json['fuel'] != self.rules.default_cargo['mass_limit']:
+            raise Exception('reward cargo required to be full of fuel')
+
+        jump_drive_json = [x for x in modules_json if x['index'] == 1]
+        if len(jump_drive_json) == 0:
+            raise Exception('unable to find jump drive module')
+        jump_drive_json = jump_drive_json[0]
+        if jump_drive_json['type'] != 'jump_drive':
+            raise Exception('second module must be jump drive module')
+        if jump_drive_json['blueprint'] != self.rules.default_jump_drive['blueprint']:
+            raise Exception('reward jump_drive blueprint does not match default')
+        if jump_drive_json['health'] != self.rules.default_jump_drive['health']:
+            raise Exception('jump_drive health does not match default')
+
+        # TODO: Validate signatures?
 
     def validate_event_input(self, event_input_json):
         if event_input_json['key'] is None:
@@ -208,26 +316,3 @@ class BlockController(object):
     def concat_resources(self, resources_json):
         resources_header = str(resources_json.get('fuel', ''))
         return resources_header
-
-        # query = session.query(Block).order_by(Block.time.desc())
-        # if block_json['previous_hash'] is None:
-        #     raise Exception('previous_hash in None')
-        # validate.field_is_sha256(block_json['previous_hash'], 'previous_hash')
-        # query = query.filter_by(hash=['previous_hash'])
-        
-        # result = query.all()
-        # if result is None:
-        #     raise Exception('Unable to find previous_hash %s' % block_json['previous_hash'])
-
-        # result_json = 
-        # for match in :
-        #     blob = None
-        #     for data in session.query(BlockData).filter_by(block_id=match.id).all():
-        #         if data.data is not None:
-        #             blob = data.blob
-        #             break
-        #     if blob is None:
-        #         print 'unable to find blob for block.id %s' % match.id
-        #         continue
-        #     print blob
-        # return json.dumps(results)

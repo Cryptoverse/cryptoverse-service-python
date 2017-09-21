@@ -37,6 +37,7 @@ class Rules():
 
     def __init__(self, **kwargs):
         self.version = kwargs.get('version', 0)
+        self.block_size = kwargs.get('block_size', 1000000)
         self.difficulty_fudge = kwargs.get('difficulty_fudge', 0)
         self.difficulty_duration = kwargs.get('difficulty_duration', 1209600)
         self.difficulty_interval = kwargs.get('difficulty_interval', 10080)
@@ -70,8 +71,13 @@ class Rules():
         if self.jump_distance_max <= 0:
             raise Exception('jump_dist_max must be greater than zero')
 
-    def is_genesis_star_log(self, sha):
-        """Checks if the provided hash could only belong to the parent of the genesis star log.
+        blueprints = kwargs.get('blueprints')
+        self.default_hull = blueprints['hull']
+        self.default_cargo = blueprints['cargo']
+        self.default_jump_drive = blueprints['jump_drive']
+
+    def is_genesis_block(self, sha):
+        """Checks if the provided hash could only belong to the parent of the genesis block.
 
         Args:
             sha (str): Hash to check.
