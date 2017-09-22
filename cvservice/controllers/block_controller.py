@@ -108,14 +108,13 @@ class BlockController(object):
             
             session.add(block)
             session.flush()
-            print block.id
 
             block_data = BlockData(block.id,
                                    block.previous_id,
                                    'data_json', # Not really used at the moment, will eventually lead to a path on disk
                                    request_data)
             session.add(block_data)
-            
+
             session.commit()
             return True
         except:
@@ -158,6 +157,7 @@ class BlockController(object):
                                 events_found += 1
             previous_id = previous_data.previous_block_id
         print 'events found: %s' % events_found
+        raise NotImplementedError('still need to loop through and confirm event rules are followed')
 
 
     def validate_block(self, session, block_json):
