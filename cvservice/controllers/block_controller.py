@@ -1,5 +1,6 @@
 import json
 import traceback
+from collections import namedtuple
 from cvservice import util
 from cvservice import validate
 from cvservice.models.block import Block
@@ -14,6 +15,7 @@ class BlockController(object):
         self.block_api = BlockApi(self)
         app.flask_app.add_url_rule('/blocks', 'get_blocks', self.block_api.post, methods=['POST'])
         app.flask_app.add_url_rule('/blocks', 'post_blocks', self.block_api.get, methods=['GET'])
+
 
     def get(self, previous_hash, before_time, since_time, limit, offset):
         session = self.database.session()
@@ -48,7 +50,8 @@ class BlockController(object):
             return json.dumps(results)
         finally:
             session.close()
-    
+
+
     def add(self, request_data):
         session = self.database.session()
         try:
@@ -57,31 +60,63 @@ class BlockController(object):
             block_json = json.loads(request_data)
             self.validate_block(session, block_json)
             
-            previous_id = None
-            interval_id = None
-            if not self.rules.is_genesis_block(block_json['previous_hash']):
+            block = Block(block_json['hash'],
+                          block_json['previous_hash'],
+                          None, # previous_id
+                          block_json['height'],
+                          block_size,
+                          block_json['version'],
+                          block_json['difficulty'],
+                          block_json['time'],
+                          None, # interval_id
+                          None, # root_id
+                          None) # chain
+
+            if self.rules.is_genesis_block(block_json['previous_hash']):
+                block.chain = util.get_unique_key()
+            else:
                 previous_block = session.query(Block).filter_by(hash=block_json['previous_hash']).first()
                 if previous_block is None:
                     raise Exception('unable to find previous block with hash %s' % block_json['previous_hash'])
-                previous_id = previous_block.id
-                raise NotImplementedError('get and calculate block interval')
-                # interval_id = previous_block.interval_id
-                
+                if block_json['height'] != previous_block.height + 1:
+                    raise Exception('wrong height specified')
+                block.previous_id = previous_block.id
+
+                if self.rules.is_difficulty_changing(block_json['height']):
+                    interval_start = session.query(Block).filter_by(id=previous_block.interval_id).first()
+                    if interval_start is None:
+                        raise Exception('unable to find interval start with id %s' % (previous_block.interval_id))
+                    duration = previous_block.time - interval_start.time
+                    difficulty = self.rules.calculate_difficulty(previous_block.difficulty, duration)
+                    if block_json['difficulty'] != difficulty:
+                        raise Exception('difficulty does not match recalculated difficulty')
+                    # This lets the next in the chain know to use our id for the interval_id.
+                    block.interval_id = None
+                elif block_json['difficulty'] != previous_block.difficulty:
+                    raise Exception('difficulty does not match previous difficulty')
+                else:
+                    block.interval_id = previous_block.interval_id
+
+                if session.query(Block).filter_by(height=block_json['height'], chain=previous_block.chain).first():
+                    # A sibling chain is being created.
+                    block.root_id = previous_block.id
+                    block.chain = util.get_unique_key()
+                else:
+                    block.root_id = previous_block.root_id
+                    block.chain = previous_block.chain
+                self.verify_events(session, block_json, previous_block.id)
             
-            # block = Block(block_json['hash'],
-            #               block_json['previous_hash'],
-            #               previous_id,
-            #               block_json['height'],
-            #               block_size,
-            #               block_json['version'],
-            #               block_json['difficulty'],
-            #               block_json['time'],
-            #               None, # interval_id
-            #               None, # root_id
-            #               None) # chain
-            # session.add(block)
-            # session.commit()
+            session.add(block)
+            session.flush()
+            print block.id
+
+            block_data = BlockData(block.id,
+                                   block.previous_id,
+                                   'data_json', # Not really used at the moment, will eventually lead to a path on disk
+                                   request_data)
+            session.add(block_data)
             
+            session.commit()
             return True
         except:
             session.rollback()
@@ -89,6 +124,41 @@ class BlockController(object):
             return False
         finally:
             session.close()
+
+
+    def verify_events(self, session, block_json, previous_id):
+        EventMatches = namedtuple('EventMatches', ['event', 'remaining_inputs', 'inputs'])
+        input_keys = []
+        event_matches = []
+        events_found = 0
+        for event in block_json['events']:
+            match_entry = EventMatches(event=event, remaining_inputs=[], inputs=[])
+            match_entry.remaining_inputs = [x['key'] for x in event['inputs']]
+            input_keys.extend(x for x in match_entry.remaining_inputs if x not in input_keys)
+            event_matches.append(match_entry)
+        all_input_keys = list(input_keys)
+        event_total = len(block_json['events'])
+        
+        while previous_id is not None and events_found != event_total:
+            previous_data = session.query(BlockData).filter_by(block_id=previous_id, uri='data_json').first()
+            if previous_data is None:
+                raise Exception('unable to find block_data with id %s and uri %s' % (previous_id, 'data_json'))
+            previous_json = previous_data.get_json()
+            for previous_event in previous_json['events']:
+                for current_input_key in [x['key'] for x in previous_event['inputs']]:
+                    if current_input_key in all_input_keys:
+                        raise Exception('event %s has already been used as a previous input')
+                for current_output in previous_event['outputs']:
+                    if current_output['key'] in input_keys:
+                        receiving_events = [x for x in event_matches if current_output['key'] in x.remaining_inputs]
+                        for current_event in receiving_events:
+                            current_event.remaining_inputs.remove(current_output['key'])
+                            current_event.inputs.append(current_output)
+                            if len(current_event.remaining_inputs) == 0:
+                                events_found += 1
+            previous_id = previous_data.previous_block_id
+        print 'events found: %s' % events_found
+
 
     def validate_block(self, session, block_json):
         if block_json['hash'] is None:
@@ -136,17 +206,17 @@ class BlockController(object):
             return
         
         raise NotImplementedError
-        
+
 
     def validate_genesis(self, session, block_json):
         pass
+
 
     def validate_is_new(self, session, block_json):
         query = session.query(Block).filter_by(hash=block_json['hash'])
         result = query.first()
         if result is not None:
             raise Exception('block with hash %s already exists')
-
         # query = session.query(Block).order_by(Block.time.desc())
         # if block_json['previous_hash'] is None:
         #     raise Exception('previous_hash in None')
@@ -169,6 +239,7 @@ class BlockController(object):
         #         continue
         #     print blob
         # return json.dumps(results)
+
 
     def validate_event(self, event_json):
         if event_json['inputs'] is None:
@@ -208,6 +279,7 @@ class BlockController(object):
         else:
             # check if this is an attack, etc
             raise NotImplementedError
+
 
     def validate_reward_event(self, reward_json):
         if 0 < len(reward_json['inputs']):
@@ -256,9 +328,11 @@ class BlockController(object):
 
         # TODO: Validate signatures?
 
+
     def validate_event_input(self, event_input_json):
         if event_input_json['key'] is None:
             raise Exception('key cannot be None')
+
 
     def validate_event_output(self, event_output_json):
         if event_output_json['fleet_hash'] is None:
@@ -270,11 +344,13 @@ class BlockController(object):
         if event_output_json['model'] is None:
             raise Exception('model cannot be None')
 
+
     def concat_event_output_model(self, event_output_model_json):
         model_type = event_output_model_json['type']
         if model_type == 'vessel':
             return self.concat_vessel(event_output_model_json)
         raise Exception('event output model "%s" is not recognized' % model_type)
+
 
     def concat_vessel(self, vessel_json):
         if vessel_json['blueprint'] is None:
@@ -285,6 +361,7 @@ class BlockController(object):
         for current_module in sorted(vessel_json['modules'], key=lambda x: x['index']):
             vessel_header += self.concat_module(current_module)
         return vessel_header
+
 
     def concat_module(self, module_json):
         if module_json['blueprint'] is None:
@@ -304,14 +381,17 @@ class BlockController(object):
             raise Exception('%s not a recognized module type' % module_type)
         return module_header
 
+
     def concat_cargo(self, cargo_json):
         if cargo_json['contents'] is None:
             raise Exception('contents cannot be None')
         cargo_header = self.concat_resources(cargo_json['contents'])
         return cargo_header
-    
+
+
     def concat_jump_drive(self, jump_drive_json):
         return ''
+
 
     def concat_resources(self, resources_json):
         resources_header = str(resources_json.get('fuel', ''))

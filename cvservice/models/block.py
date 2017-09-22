@@ -16,7 +16,7 @@ class Block(Model):
     time = Column(Integer)
     interval_id = Column(Integer, ForeignKey('blocks.id'))
     root_id = Column(Integer, ForeignKey('blocks.id'))
-    chain = Column(Integer)
+    chain = Column(String(64))
 
     def __init__(self, 
                  hash,
