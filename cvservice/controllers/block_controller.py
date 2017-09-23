@@ -312,8 +312,8 @@ class BlockController(object):
         contents_json = cargo_json['contents']
         if contents_json is None:
             raise Exception('reward cargo required to be full of fuel')
-        if contents_json['fuel'] != self.rules.default_cargo['mass_limit']:
-            raise Exception('reward cargo required to be full of fuel')
+
+        # TODO: get mass limit from blueprint and verify fuel amount here.
 
         jump_drive_json = [x for x in modules_json if x['index'] == 1]
         if len(jump_drive_json) == 0:
