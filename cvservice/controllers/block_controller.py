@@ -204,7 +204,8 @@ class BlockController(object):
         if self.rules.is_genesis_block(block_json['previous_hash']):
             self.validate_genesis(session, block_json)
             return
-        
+
+        # TODO: Validate events and such, anything that's not in a genesis block...
         raise NotImplementedError
 
 
