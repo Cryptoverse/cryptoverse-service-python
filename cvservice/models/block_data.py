@@ -1,5 +1,5 @@
 import json
-from sqlalchemy import Column, Integer, ForeignKey, String, LargeBinary
+from sqlalchemy import orm, Column, Integer, ForeignKey, String, LargeBinary
 from cvservice.models import Model
 
 class BlockData(Model):
@@ -18,10 +18,17 @@ class BlockData(Model):
         self.previous_block_id = previous_block_id
         self.uri = uri
         self.data = data
-        
+
         self.json = None
 
+
+    @orm.reconstructor
+    def init_on_load(self):
+        self.json = None
+
+
     def get_json(self):
+        # TODO: Take uri into account.
         if self.json is None:
             if self.data is None:
                 self.json = None

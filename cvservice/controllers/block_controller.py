@@ -38,15 +38,15 @@ class BlockController(object):
             query = query.limit(limit)
             results = []
             for match in query.all():
-                blob = None
+                block_json = None
                 for data in session.query(BlockData).filter_by(block_id=match.id).all():
-                    if data.data is not None:
-                        blob = data.blob
+                    block_json = data.get_json()
+                    if block_json is not None:
                         break
-                if blob is None:
-                    print 'unable to find blob for block.id %s' % match.id
+                if block_json is None:
+                    print 'unable to find data for blocks.id %s' % match.id
                     continue
-                print blob
+                results.append(block_json)
             return json.dumps(results)
         finally:
             session.close()

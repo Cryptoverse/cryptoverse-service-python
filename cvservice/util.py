@@ -19,18 +19,6 @@ def sha256(message):
     return hashlib.sha256('' if message is None else message).hexdigest()
 
 
-def expand_rsa_public_key(shrunk_public_key):
-    """Reformats a shrunk Rsa public key.
-
-    Args:
-        shrunk_public_key (str): Rsa public key without the BEGIN or END sections.
-    
-    Returns:
-        str: The public key with its BEGIN and END sections reattatched.
-    """
-    return '-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----'%(shrunk_public_key)
-
-
 def rsa_sign(private_key, message):
     """Signs a message with the provided Rsa private key.
 

@@ -2,7 +2,7 @@ import math
 import numpy
 from cvservice.util import sha256
 
-class Rules():
+class Rules(object):
 
     INTEGER_MAX = 2147483647
     NONCE_MAX = 2147483647

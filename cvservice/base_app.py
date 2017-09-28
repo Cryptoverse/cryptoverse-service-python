@@ -3,10 +3,8 @@ from json import load as load_json
 from flask import Flask
 from cvservice.models import Database
 from cvservice.controllers.block_controller import BlockController
+from cvservice.controllers.event_controller import EventController
 from cvservice.controllers.rules_controller import RulesController
-from cvservice.models.event_model_type import EventModelType
-from cvservice.models.event_type import EventType
-from cvservice.models.event_usage import EventUsage
 from cvservice.rules import Rules
 
 class BaseApp(object):
@@ -26,6 +24,7 @@ class BaseApp(object):
         self.initialize_database()
 
         self.block_controller = BlockController(self)
+        self.event_controller = EventController(self)
         self.rules_controller = RulesController(self)
 
         self.flask_app.run(use_reloader=False)
@@ -37,23 +36,3 @@ class BaseApp(object):
         self.database.app = self.flask_app
         self.database.init_app(self.flask_app)
         self.database.create_all()
-
-        self.populate_types(EventModelType, Rules.EVENT_MODEL_TYPES)
-        self.populate_types(EventType, Rules.EVENT_TYPES)
-        self.populate_types(EventUsage, Rules.EVENT_USAGES)
-
-
-    def populate_types(self, type_class, type_names):
-        session = self.database.session()
-        try:
-            for existing in session.query(type_class).all():
-                if existing.name not in type_names:
-                    raise Exception('Database already contains unrecognized value %s' % existing.name)
-                type_names.remove(existing.name)
-            for current_type in type_names:
-                if current_type == 'unknown':
-                    continue
-                session.add(type_class(current_type))
-            session.commit()
-        finally:
-            session.close()
