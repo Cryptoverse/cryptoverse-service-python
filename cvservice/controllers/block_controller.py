@@ -21,6 +21,7 @@ class BlockController(object):
         session = self.database.session()
         try:
             query = session.query(Block).order_by(Block.time.desc())
+
             if previous_hash is not None:
                 validate.field_is_sha256(previous_hash, 'previous_hash')
                 query = query.filter_by(previous_hash=previous_hash)
@@ -30,12 +31,20 @@ class BlockController(object):
                 query = query.filter(since_time < Block.time)
             if since_time is not None and before_time is not None and before_time < since_time:
                 raise Exception('since_time is greater than before_time')
-            if self.rules.blocks_limit_max < limit:
-                raise Exception('limit greater than maximum allowed')
+            
+            if limit is None:
+                limit = self.rules.blocks_limit_max
+            else:
+                if limit < 1:
+                    raise Exception('limit must be greater than zero')
+                if self.rules.blocks_limit_max < limit:
+                    raise Exception('limit greater than maximum allowed')
+            
+            query = query.limit(limit)
+            
             if offset is not None:
                 query = query.offset(offset)
 
-            query = query.limit(limit)
             results = []
             for match in query.all():
                 block_json = None
