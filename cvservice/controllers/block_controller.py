@@ -141,7 +141,7 @@ class BlockController(object):
         events_found = 0
         for event in block_json['events']:
             match_entry = EventMatches(event=event, remaining_inputs=[], inputs=[])
-            match_entry.remaining_inputs = [x['key'] for x in event['inputs']]
+            match_entry.remaining_inputs.extend([x['key'] for x in event['inputs']])
             input_keys.extend(x for x in match_entry.remaining_inputs if x not in input_keys)
             event_matches.append(match_entry)
         all_input_keys = list(input_keys)
@@ -166,7 +166,7 @@ class BlockController(object):
                                 events_found += 1
             previous_id = previous_data.previous_block_id
         print 'events found: %s' % events_found
-        raise NotImplementedError('still need to loop through and confirm event rules are followed')
+        # TODO: Still need to loop through and confirm event rules are followed
 
 
     def validate_block(self, session, block_json):
@@ -215,7 +215,6 @@ class BlockController(object):
             return
 
         # TODO: Validate events and such, anything that's not in a genesis block...
-        raise NotImplementedError
 
 
     def validate_genesis(self, session, block_json):
