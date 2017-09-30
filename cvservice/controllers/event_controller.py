@@ -47,6 +47,7 @@ class EventController(object):
                 if event_json is None:
                     print 'unable to find data for events.id %s' % match.event_id
                     continue
+                event_json['confirmation_count'] = match.confirmation_count
                 results.append(event_json)
             return json.dumps(results)
         finally:
@@ -77,7 +78,7 @@ class EventController(object):
                             None, # Size
                             event_json['version'],
                             util.get_time(),
-                            0)
+                            1 if confirm else 0)
                 
                 session.add(event)
                 session.flush()
@@ -86,7 +87,7 @@ class EventController(object):
                                     'data_json', # Not really used at the moment, will eventually lead to a path on disk
                                     json.dumps(event_json))
                 session.add(event_data)
-            else:
+            elif confirm:
                 existing_event.confirmation_count += 1
 
         session.commit()
