@@ -6,7 +6,7 @@ class EventData(Model):
     __tablename__ = 'event_data'
     extend_existing = True
 
-    id = Column(Integer, primary_key=True)
+    event_data_id = Column('id', Integer, primary_key=True)
     event_id = Column(Integer, ForeignKey('events.id'))
     uri = Column(String(1024))
     # This data will probably be replaced eventually...

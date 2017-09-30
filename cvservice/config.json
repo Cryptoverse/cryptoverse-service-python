@@ -1,5 +1,6 @@
 {
     "version": 0,
+    "event_version": 0,
     "block_bytes": 1000000,
     "difficulty_fudge": 4,
     "difficulty_duration": 1209600,

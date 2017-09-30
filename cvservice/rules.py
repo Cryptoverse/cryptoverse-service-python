@@ -50,6 +50,7 @@ class Rules(object):
         self.jump_distance_max = kwargs.get('jump_distance_max', 2048)
         self.blocks_limit_max = kwargs.get('blocks_limit_max', 10)
         self.events_limit_max = kwargs.get('events_limit_max', 10)
+        self.event_version = kwargs.get('event_version', 0)
 
         self.jump_cost_range = self.jump_cost_max - self.jump_cost_min
         

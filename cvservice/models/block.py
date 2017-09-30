@@ -5,8 +5,8 @@ class Block(Model):
     __tablename__ = 'blocks'
     extend_existing = True
 
-    id = Column(Integer, primary_key=True)
-    hash = Column(String(64))
+    block_id = Column('id', Integer, primary_key=True)
+    block_hash = Column('hash', String(64))
     previous_hash = Column(String(64))
     previous_id = Column(Integer, ForeignKey('blocks.id'))
     height = Column(Integer)
@@ -19,7 +19,7 @@ class Block(Model):
     chain = Column(String(64))
 
     def __init__(self, 
-                 hash,
+                 block_hash,
                  previous_hash,
                  previous_id,
                  height,
@@ -30,7 +30,7 @@ class Block(Model):
                  interval_id,
                  root_id,
                  chain):
-        self.hash = hash
+        self.block_hash = block_hash
         self.previous_hash = previous_hash
         self.previous_id = previous_id
         self.height = height
