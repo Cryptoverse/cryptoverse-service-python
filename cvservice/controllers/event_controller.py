@@ -39,7 +39,6 @@ class EventController(object):
                     raise Exception('limit must be greater than zero')
                 if self.rules.events_limit_max < limit:
                     raise Exception('limit greater than maximum allowed')
-            print limit
             query = query.limit(limit)
 
             if offset is not None:
@@ -65,6 +64,7 @@ class EventController(object):
     def add(self, request_data):
         session = self.database.session()
         try:
+            self.add_all(session, json.loads(request_data), allow_rewards=False)
             return True
         except:
             session.rollback()
@@ -74,9 +74,11 @@ class EventController(object):
             session.close()
 
 
-    def add_all(self, session, events_json, confirm=False):
+    def add_all(self, session, events_json, confirm=False, allow_rewards=True):
         for event_json in events_json:
             self.validate_event(event_json)
+            if not allow_rewards and event_json['type'] == 'reward':
+                raise Exception('events of type reward are not allowed')
             existing_event = session.query(Event).filter_by(event_hash=event_json['hash']).first()
 
             if existing_event is None:
