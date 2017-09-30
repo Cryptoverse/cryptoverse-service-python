@@ -11,7 +11,7 @@ class BlockApi():
         since_time = request.args.get('since_time', None, type=int)
         limit = request.args.get('limit', None, type=int)
         offset = request.args.get('offset', None, type=int)
-        
+
         return self.block_controller.get(previous_hash,
                                          before_time,
                                          since_time,

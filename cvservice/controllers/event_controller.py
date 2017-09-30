@@ -18,7 +18,13 @@ class EventController(object):
         app.flask_app.add_url_rule('/events', 'post_events', self.event_api.get, methods=['GET'])
 
 
-    def get(self, key, before_time, since_time, limit, offset):
+    def get(self,
+            key,
+            before_time,
+            since_time,
+            limit,
+            offset,
+            include_rewards):
         session = self.database.session()
         try:
             query = session.query(Event).order_by(Event.received_time.desc())
@@ -31,7 +37,11 @@ class EventController(object):
                 query = query.filter(since_time < Event.received_time)
             if since_time is not None and before_time is not None and before_time < since_time:
                 raise Exception('since_time is greater than before_time')
-            
+            if include_rewards is None:
+                include_rewards = False
+            if not include_rewards:
+                query = query.filter(Event.event_type != 'reward')
+
             if limit is None:
                 limit = self.rules.events_limit_max
             else:

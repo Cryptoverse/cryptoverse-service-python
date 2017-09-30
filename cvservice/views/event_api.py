@@ -13,12 +13,14 @@ class EventApi(object):
         since_time = request.args.get('since_time', None, type=int)
         limit = request.args.get('limit', None, type=int)
         offset = request.args.get('offset', None, type=int)
-        
+        include_rewards = 1 == request.args.get('include_rewards', 0, type=int)
+
         return self.event_controller.get(key,
                                          before_time,
                                          since_time,
                                          limit,
-                                         offset)
+                                         offset,
+                                         include_rewards)
 
 
     def post(self):
