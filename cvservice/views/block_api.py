@@ -9,7 +9,7 @@ class BlockApi():
         previous_hash = request.args.get('previous_hash', None, type=str)
         before_time = request.args.get('before_time', None, type=int)
         since_time = request.args.get('since_time', None, type=int)
-        limit = request.args.get('limit', 1, type=int)
+        limit = request.args.get('limit', None, type=int)
         offset = request.args.get('offset', None, type=int)
         
         return self.block_controller.get(previous_hash,

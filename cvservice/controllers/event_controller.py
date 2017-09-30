@@ -31,12 +31,20 @@ class EventController(object):
                 query = query.filter(since_time < Event.received_time)
             if since_time is not None and before_time is not None and before_time < since_time:
                 raise Exception('since_time is greater than before_time')
-            if self.rules.events_limit_max < limit:
-                raise Exception('limit greater than maximum allowed')
+            
+            if limit is None:
+                limit = self.rules.events_limit_max
+            else:
+                if limit < 1:
+                    raise Exception('limit must be greater than zero')
+                if self.rules.events_limit_max < limit:
+                    raise Exception('limit greater than maximum allowed')
+            print limit
+            query = query.limit(limit)
+
             if offset is not None:
                 query = query.offset(offset)
 
-            query = query.limit(limit)
             results = []
             for match in query.all():
                 event_json = None
