@@ -8,14 +8,14 @@ class EventApi(object):
 
     def get(self):
         # key, before_time, since_time, limit, offset
-        key = request.args.get('key', None, type=str)
+        event_hash = request.args.get('hash', None, type=str)
         before_time = request.args.get('before_time', None, type=int)
         since_time = request.args.get('since_time', None, type=int)
         limit = request.args.get('limit', None, type=int)
         offset = request.args.get('offset', None, type=int)
         include_rewards = 1 == request.args.get('include_rewards', 0, type=int)
 
-        return self.event_controller.get(key,
+        return self.event_controller.get(event_hash,
                                          before_time,
                                          since_time,
                                          limit,

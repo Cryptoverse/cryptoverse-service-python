@@ -1,6 +1,5 @@
 import json
 import traceback
-from collections import namedtuple
 from cvservice import util
 from cvservice import validate
 from cvservice.models.block import Block

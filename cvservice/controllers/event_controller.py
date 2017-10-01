@@ -19,7 +19,7 @@ class EventController(object):
 
 
     def get(self,
-            key,
+            event_hash,
             before_time,
             since_time,
             limit,
@@ -28,9 +28,9 @@ class EventController(object):
         session = self.database.session()
         try:
             query = session.query(Event).order_by(Event.received_time.desc())
-            if key is not None:
-                validate.field_is_sha256(key, 'key')
-                query = query.filter_by(key=key)
+            if event_hash is not None:
+                validate.field_is_sha256(event_hash, 'hash')
+                query = query.filter_by(event_hash=event_hash)
             if before_time is not None:
                 query = query.filter(Event.received_time < before_time)
             if since_time is not None:
@@ -115,15 +115,16 @@ class EventController(object):
 
     def verify_events(self, session, block_json, previous_id):
         EventMatches = namedtuple('EventMatches', ['event', 'remaining_inputs', 'inputs'])
-        input_keys = []
+        input_hashes = []
         event_matches = []
         events_found = 0
         for event in block_json['events']:
+            self.validate_event(event)
             match_entry = EventMatches(event=event, remaining_inputs=[], inputs=[])
-            match_entry.remaining_inputs.extend([x['key'] for x in event['inputs']])
-            input_keys.extend(x for x in match_entry.remaining_inputs if x not in input_keys)
+            match_entry.remaining_inputs.extend([x['hash'] for x in event['inputs']])
+            input_hashes.extend(x for x in match_entry.remaining_inputs if x not in input_hashes)
             event_matches.append(match_entry)
-        all_input_keys = list(input_keys)
+        all_input_hashes = list(input_hashes)
         event_total = len(block_json['events'])
         
         while previous_id is not None and events_found != event_total:
@@ -132,14 +133,14 @@ class EventController(object):
                 raise Exception('unable to find block_data with id %s and uri %s' % (previous_id, 'data_json'))
             previous_json = previous_data.get_json()
             for previous_event in previous_json['events']:
-                for current_input_key in [x['key'] for x in previous_event['inputs']]:
-                    if current_input_key in all_input_keys:
+                for current_input_hash in [x['hash'] for x in previous_event['inputs']]:
+                    if current_input_hash in all_input_hashes:
                         raise Exception('event %s has already been used as a previous input')
                 for current_output in previous_event['outputs']:
-                    if current_output['key'] in input_keys:
-                        receiving_events = [x for x in event_matches if current_output['key'] in x.remaining_inputs]
+                    if current_output['hash'] in input_hashes:
+                        receiving_events = [x for x in event_matches if current_output['hash'] in x.remaining_inputs]
                         for current_event in receiving_events:
-                            current_event.remaining_inputs.remove(current_output['key'])
+                            current_event.remaining_inputs.remove(current_output['hash'])
                             current_event.inputs.append(current_output)
                             if len(current_event.remaining_inputs) == 0:
                                 events_found += 1
@@ -152,8 +153,8 @@ class EventController(object):
             raise Exception('inputs cannot be None')
         if event_json['hash'] is None:
             raise Exception('hash cannot be None')
-        if event_json['key'] is None:
-            raise Exception('key cannot be None')
+        if event_json['hash'] is None:
+            raise Exception('hash cannot be None')
         if event_json['fleet_hash'] is None:
             raise Exception('fleet_hash cannot be None')
         if event_json['fleet_key'] is None:
@@ -178,13 +179,15 @@ class EventController(object):
 
         for current_input in sorted(event_json['inputs'], key=lambda x: x['index']):
             self.validate_event_input(current_input)
-            event_header += current_input['key']
+            event_header += current_input['hash']
         for current_output in sorted(event_json['outputs'], key=lambda x: x['index']):
             self.validate_event_output(current_output)
-
             serialized_location = '' if current_output['location'] is None else current_output['location']
-            event_header += '%s%s%s%s' % (current_output['type'], current_output['fleet_hash'], current_output['key'], serialized_location)
-            event_header += self.concat_event_output_model(current_output['model'])
+            output_header = '%s%s%s%s' % (current_output['type'], current_output['fleet_hash'], current_output['key'], serialized_location)
+            output_header += self.concat_event_output_model(current_output['model'])
+            validate.sha256(current_output['hash'], output_header)
+            event_header += current_output['hash']
+
         validate.sha256(event_json['hash'], event_header)
 
         if event_json['type'] == 'reward':
@@ -243,15 +246,15 @@ class EventController(object):
 
 
     def validate_event_input(self, event_input_json):
-        if event_input_json['key'] is None:
-            raise Exception('key cannot be None')
+        if event_input_json['hash'] is None:
+            raise Exception('hash cannot be None')
 
 
     def validate_event_output(self, event_output_json):
         if event_output_json['fleet_hash'] is None:
             raise Exception('fleet_hash cannot be None')
-        if event_output_json['key'] is None:
-            raise Exception('key cannot be None')
+        if event_output_json['hash'] is None:
+            raise Exception('hash cannot be None')
         if event_output_json['type'] is None:
             raise Exception('type cannot be None')
         if event_output_json['model'] is None:
